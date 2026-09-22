@@ -93,6 +93,30 @@ async function main() {
   }
   console.info(`Benefits ready: ${DEFAULT_BENEFITS.length} default tip(s) present.`);
 
+  // Default cost-calculator rates. Idempotent per-key upserts, same shape as
+  // benefits above: a re-run never overwrites a price the owner already
+  // changed, and a material added later (there is none today) would be
+  // appended rather than resetting existing rows.
+  const DEFAULT_MATERIAL_RATES: Record<string, number> = {
+    PLA: 20.0,
+    PETG: 22.0,
+    TPU: 28.0,
+    Resin: 45.0,
+  };
+  for (const [material, dollarsPerKg] of Object.entries(DEFAULT_MATERIAL_RATES)) {
+    await db.materialRate.upsert({
+      where: { material: material as "PLA" | "PETG" | "TPU" | "Resin" },
+      update: {},
+      create: { material: material as "PLA" | "PETG" | "TPU" | "Resin", dollarsPerKg },
+    });
+  }
+  await db.machineRate.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", dollarsPerHour: 0.75 },
+  });
+  console.info("Cost calculator rates ready (edit them at /admin/rates).");
+
   // A `credential` account with a password is the thing that makes signing in
   // possible. A passkey creates no such row, so somebody who enrolled one and
   // never set a password still counts as needing this — which is correct: the

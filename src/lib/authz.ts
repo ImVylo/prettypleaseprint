@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storyScope, type Actor } from "@/lib/scope";
+import { postWebhook, webhookConfigured } from "@/lib/webhook";
 
 // The pure rules live in `scope.ts` so they can be imported without pulling in
 // `server-only`. Re-exported here so callers have one import to reach for.
@@ -147,6 +148,10 @@ export async function notify(opts: {
       text: opts.text,
     },
   });
+
+  // Best-effort outbound webhook (Discord/Slack-compatible), on top of the
+  // in-app row above. Never awaited into a failure path — see webhook.ts.
+  if (webhookConfigured()) void postWebhook(opts.text);
 }
 
 /** Notifications are per recipient, and scoped the same way stories are. */
