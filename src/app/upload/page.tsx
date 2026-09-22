@@ -1,5 +1,6 @@
 import { printerName, requireUser } from "@/lib/authz";
 import { listActiveBenefits } from "@/lib/benefits";
+import { listActiveMaterials } from "@/lib/materials";
 import { AppHeader } from "@/components/app-header";
 import { Kicker } from "@/components/ui";
 import { UploadForm } from "./upload-form";
@@ -9,11 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function UploadPage() {
   const user = await requireUser("/upload");
   const owner = await printerName();
-  // The tip options are owner-managed now; the form renders from these.
-  const benefits = (await listActiveBenefits()).map((b) => ({
-    label: b.label,
-    preferred: b.preferred,
-  }));
+  // The tip and material options are owner-managed now; the form renders
+  // from these.
+  const [benefits, materials] = await Promise.all([
+    listActiveBenefits().then((rows) => rows.map((b) => ({ label: b.label, preferred: b.preferred }))),
+    listActiveMaterials().then((rows) => rows.map((m) => m.name)),
+  ]);
 
   return (
     <>
@@ -23,10 +25,8 @@ export default async function UploadPage() {
           <Kicker>New order</Kicker>
           {/* Still a sentence someone would say out loud — which was the
               point of the original H1, and survives the rename. */}
-          {/* Still a sentence someone would say out loud, which was the point
-              of the original H1 and survives both the rename and the redesign. */}
           <h1 className="m-0 mb-[13.2px] text-[46px] leading-[0.98] text-ink">
-            Pretty please print
+            BYD Printing
           </h1>
           <p className="m-0 mb-[26.4px] text-[16.5px] leading-[1.5] text-ink-2 text-pretty">
             Drop an <span className="font-mono">.stl</span> or{" "}
@@ -34,7 +34,7 @@ export default async function UploadPage() {
             your order goes up on the rail as a ticket you can follow.
           </p>
         </div>
-        <UploadForm owner={owner} benefits={benefits} />
+        <UploadForm owner={owner} benefits={benefits} materials={materials} />
       </main>
     </>
   );

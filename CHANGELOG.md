@@ -7,6 +7,19 @@ Notable changes. Every entry names a released version; deployments pin
 
 ### Added
 
+- **Multi-colour printing.** A requester can check "multi-colour print" on
+  upload and pick up to 3 extra colours (4 total) — an AMS, MMU, or manual
+  filament swap. Stored as `Story.additionalColorNames`, shown on the story
+  detail page, the queue list, and as a split colour stripe on story cards.
+
+- **Owner-managed materials.** `Story.material` was a fixed enum
+  (PLA/PETG/TPU/Resin) — adding one meant a migration and a redeploy. It is
+  now owner-managed data, exactly like the tip catalogue: add, rename or
+  retire at `/admin/materials` with no code change. A new material gets a
+  $0/kg cost-calculator rate automatically; set the real price at
+  `/admin/rates`. Seeded with the original four so an existing deployment
+  sees no change until the owner touches it.
+
 - **Cost calculator.** A ticket shows what it actually cost — filament by
   weight, machine time by minutes — the moment the printer owner records
   them at `/story/[id]`. Never a guess: exactly the rule the dropped

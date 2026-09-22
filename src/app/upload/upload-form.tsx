@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   COLORS,
   DEFAULT_COLOR,
-  DEFAULT_MATERIAL,
-  MATERIALS,
   QUANTITY_PRESETS,
 } from "@/lib/catalog";
 // The same numbers the server enforces. `models.ts` cannot be imported here —
@@ -74,9 +72,11 @@ function Segmented<T extends string | number>({
 export function UploadForm({
   owner,
   benefits,
+  materials,
 }: {
   owner: string;
   benefits: Benefit[];
+  materials: string[];
 }) {
   // Default to a preferred benefit if the owner has marked one, else the first
   // on the list, else empty (the list is seeded, so empty is only a safety net).
@@ -90,7 +90,7 @@ export function UploadForm({
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
   const [title, setTitle] = useState("");
-  const [material, setMaterial] = useState<string>(DEFAULT_MATERIAL);
+  const [material, setMaterial] = useState<string>(materials[0] ?? "");
   const [quantity, setQuantity] = useState<number>(1);
   const [color, setColor] = useState<string>(DEFAULT_COLOR.name);
   const [multiColor, setMultiColor] = useState(false);
@@ -261,7 +261,7 @@ export function UploadForm({
           <Label htmlFor="material">Material you&rsquo;d like</Label>
           <Segmented
             label="Material"
-            options={MATERIALS}
+            options={materials}
             value={material}
             onChange={setMaterial}
           />

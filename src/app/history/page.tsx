@@ -3,7 +3,8 @@ import Link from "next/link";
 import { requireUser, printerName } from "@/lib/authz";
 import { storyRef } from "@/lib/scope";
 import { HISTORY_STATUSES, listHistory } from "@/lib/stories";
-import { MATERIALS, relativeTime } from "@/lib/catalog";
+import { relativeTime } from "@/lib/catalog";
+import { listAllMaterials } from "@/lib/materials";
 import { AppHeader } from "@/components/app-header";
 import { Kicker, StatusChip } from "@/components/ui";
 import { RequeueStory } from "@/components/requeue-story";
@@ -45,6 +46,7 @@ export default async function HistoryPage({
   ]);
   const owner = await printerName();
   const isAdmin = user.role === "admin";
+  const allMaterials = (await listAllMaterials()).map((m) => m.name);
 
   // Only honour values we recognise; anything else falls back to "all".
   const statusFilter =
@@ -52,7 +54,7 @@ export default async function HistoryPage({
       ? (status as StoryStatus)
       : undefined;
   const materialFilter =
-    material && (MATERIALS as readonly string[]).includes(material) ? material : undefined;
+    material && allMaterials.includes(material) ? material : undefined;
   const sincePreset = SINCE.find((s) => s.key === since) ?? SINCE[3]; // default: all time
 
   const stories = await listHistory(user, {
@@ -99,7 +101,7 @@ export default async function HistoryPage({
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">Material</span>
             <select name="material" defaultValue={materialFilter ?? ""} className={selectClass}>
               <option value="">Any</option>
-              {MATERIALS.map((m) => (
+              {allMaterials.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>

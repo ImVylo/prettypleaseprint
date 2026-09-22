@@ -5,6 +5,12 @@
  */
 import { z } from "zod";
 
+/**
+ * The default materials, seeded into the `Material` table on first run. The
+ * live list is owner-managed data (see `src/lib/materials.ts`); this const
+ * is only the seed default and a fallback, no longer the source of truth —
+ * same pattern as TIPS below.
+ */
 export const MATERIALS = ["PLA", "PETG", "TPU", "Resin"] as const;
 export const DEFAULT_MATERIAL = "PETG";
 
@@ -64,7 +70,12 @@ export const WishSchema = z.object({
     .max(120, "Keep the title under 120 characters.")
     .optional()
     .default(""),
-  material: z.enum(MATERIALS),
+  // The material is no longer a compile-time enum — it is an owner-managed
+  // list (see src/lib/materials.ts), exactly like the tip below. This module
+  // is shared with the client bundle and cannot read the database, so it
+  // only checks the shape; the upload route validates the value against the
+  // current *active* materials.
+  material: z.string().trim().min(1, "Pick a material.").max(40, "That material name is oddly long."),
   colorName: z.enum(colorNames),
   /// Optional extra colours for a multi-colour print (AMS/MMU/manual
   /// filament swap). Capped at 3 — 4 colours total including the primary —

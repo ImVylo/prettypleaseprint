@@ -50,6 +50,9 @@ export type AuditAction =
   | "rate.material_updated"
   | "rate.machine_updated"
   | "story.actuals_recorded"
+  // materials catalogue (owner-managed, replacing the old fixed enum)
+  | "material.created"
+  | "material.updated"
   // feature requests (the 'frr' track)
   | "feature.created"
   | "feature.status_changed"

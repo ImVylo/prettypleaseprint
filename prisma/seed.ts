@@ -93,10 +93,23 @@ async function main() {
   }
   console.info(`Benefits ready: ${DEFAULT_BENEFITS.length} default tip(s) present.`);
 
+  // Default materials. Idempotent and non-destructive, same shape as
+  // benefits above: a re-run never overwrites a renamed or retired material,
+  // and a new default would be appended rather than resetting existing rows.
+  const DEFAULT_MATERIALS = ["PLA", "PETG", "TPU", "Resin"];
+  for (let i = 0; i < DEFAULT_MATERIALS.length; i++) {
+    await db.material.upsert({
+      where: { name: DEFAULT_MATERIALS[i]! },
+      update: {},
+      create: { name: DEFAULT_MATERIALS[i]!, sortOrder: i + 1 },
+    });
+  }
+  console.info(`Materials ready: ${DEFAULT_MATERIALS.length} default material(s) present.`);
+
   // Default cost-calculator rates. Idempotent per-key upserts, same shape as
   // benefits above: a re-run never overwrites a price the owner already
-  // changed, and a material added later (there is none today) would be
-  // appended rather than resetting existing rows.
+  // changed, and a material added later would be appended rather than
+  // resetting existing rows.
   const DEFAULT_MATERIAL_RATES: Record<string, number> = {
     PLA: 20.0,
     PETG: 22.0,
@@ -105,9 +118,9 @@ async function main() {
   };
   for (const [material, dollarsPerKg] of Object.entries(DEFAULT_MATERIAL_RATES)) {
     await db.materialRate.upsert({
-      where: { material: material as "PLA" | "PETG" | "TPU" | "Resin" },
+      where: { material },
       update: {},
-      create: { material: material as "PLA" | "PETG" | "TPU" | "Resin", dollarsPerKg },
+      create: { material, dollarsPerKg },
     });
   }
   await db.machineRate.upsert({

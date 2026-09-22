@@ -1,7 +1,6 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { Material } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { record } from "@/lib/audit";
@@ -48,7 +47,7 @@ function refresh() {
 // Reads
 // ---------------------------------------------------------------------------
 
-export type MaterialRateRow = { material: Material; dollarsPerKg: number };
+export type MaterialRateRow = { material: string; dollarsPerKg: number };
 
 export async function listMaterialRates(): Promise<MaterialRateRow[]> {
   const rows = await db.materialRate.findMany({ orderBy: { material: "asc" } });
@@ -131,9 +130,9 @@ export async function setMaterialRate(
   if (!parsed.success) throw new RateProblem("Enter a price of $0 or more.");
 
   const updated = await db.materialRate.upsert({
-    where: { material: material as Material },
+    where: { material },
     update: { dollarsPerKg: parsed.data },
-    create: { material: material as Material, dollarsPerKg: parsed.data },
+    create: { material, dollarsPerKg: parsed.data },
   });
 
   await record({

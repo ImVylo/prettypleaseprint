@@ -251,13 +251,6 @@ enum StoryStatus {
   Declined
 }
 
-enum Material {
-  PLA
-  PETG
-  TPU
-  Resin
-}
-
 model Story {
   /// Autoincrement so the display ref stays "PPP-" + (100 + id).
   id     Int         @id @default(autoincrement())
@@ -268,7 +261,12 @@ model Story {
   uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
   quantity  Int      @default(1)
-  material  Material @default(PETG)
+  /// Plain string, not an enum — materials are owner-managed data (see
+  /// Material model below and src/lib/materials.ts), mirroring how Benefit
+  /// already handles the tip catalogue. A retired material is kept exactly
+  /// like a retired benefit: past tickets that used it still read correctly,
+  /// it just drops off the upload form's choices.
+  material  String   @default("PETG")
   colorName String
   colorHex  String
   /// Extra colours for a multi-colour print (AMS/MMU/manual filament swap),
@@ -361,6 +359,24 @@ model Notification {
   @@map("notification")
 }
 
+/// The materials a request can be made from — owner-managed, mirroring
+/// Benefit exactly. Seeded with the four the app always shipped with
+/// (PLA/PETG/TPU/Resin); the owner adds, renames or retires from here at
+/// /admin/materials with no code change and no redeploy. `active` retires
+/// without deleting, so a past ticket that used a material still reads
+/// correctly after it drops off the upload form.
+model Material {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+  @@map("material")
+}
+
 /// Owner-managed $/kg by material, plus one shared $/hour machine rate — the
 /// inputs the cost calculator needs (src/lib/cost.ts). Mirrors Benefit: a
 /// single-row-per-material table the owner edits, not a hardcoded const, so
@@ -370,8 +386,12 @@ model Notification {
 /// like the rest of this app's "nothing inferred, nothing stale" rule for
 /// numbers on a ticket. If prices need to be historical later, snapshot the
 /// rate onto the Story at completion instead of changing this table's shape.
+///
+/// `material` is a plain string, not a foreign key to Material.name: a rate
+/// for a since-retired or since-renamed material should keep working rather
+/// than cascade-delete, for the same reason Story.material is a plain string.
 model MaterialRate {
-  material       Material @id
+  material       String   @id
   dollarsPerKg   Float
   updatedAt      DateTime @updatedAt
 

@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
-import { COLORS, MATERIALS, TIPS, WishSchema } from "@/lib/catalog";
+import { COLORS, TIPS, WishSchema } from "@/lib/catalog";
 import { ACCEPTED_EXTENSIONS, MAX_BYTES, formatBytes } from "@/lib/models";
 import { FLOW } from "@/lib/scope";
 import { BodySchema, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, ReasonSchema } from "@/lib/stories";
@@ -93,7 +93,7 @@ const STORY_SCHEMA = {
     flagged: { type: "boolean" },
     flagReason: { type: ["string", "null"] },
     quantity: { type: "integer", minimum: 1 },
-    material: { type: "string", enum: [...MATERIALS] },
+    material: { type: "string", description: "Owner-managed data, not a fixed enum — current choices are whatever the upload form offers." },
     color: {
       type: "object",
       properties: {

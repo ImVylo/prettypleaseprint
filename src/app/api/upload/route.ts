@@ -6,6 +6,7 @@ import type { Actor } from "@/lib/scope";
 import { record } from "@/lib/audit";
 import { WishSchema, hexForColor } from "@/lib/catalog";
 import { activeBenefitLabels } from "@/lib/benefits";
+import { activeMaterialNames } from "@/lib/materials";
 import {
   MAX_BYTES,
   REJECTION_COPY,
@@ -145,6 +146,13 @@ async function handleUpload(request: Request, user: Actor) {
   const allowedTips = await activeBenefitLabels();
   if (allowedTips.length > 0 && !allowedTips.includes(wish.data.tip)) {
     return bad(400, "That is not a benefit on offer — pick one from the list.");
+  }
+
+  // Same rule, same reasoning, for the material — owner-managed data since
+  // it stopped being a fixed enum.
+  const allowedMaterials = await activeMaterialNames();
+  if (allowedMaterials.length > 0 && !allowedMaterials.includes(wish.data.material)) {
+    return bad(400, "That is not a material on offer — pick one from the list.");
   }
 
   const filename = safeFilename(file.name);
