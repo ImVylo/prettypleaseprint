@@ -271,6 +271,16 @@ model Story {
   material  Material @default(PETG)
   colorName String
   colorHex  String
+  /// Extra colours for a multi-colour print (AMS/MMU/manual filament swap),
+  /// beyond the primary `colorName`/`colorHex` above. Stored as a plain array
+  /// of the same catalogue names rather than a join table — the list is
+  /// short (capped at 4 total colours, see WishSchema), never queried on its
+  /// own, and a join table would only earn its keep past that scale. Empty
+  /// for the common single-colour case, which is also why the primary colour
+  /// stayed its own two columns instead of folding into this array: every
+  /// existing swatch/group-by (dashboard.ts, story cards) keeps working
+  /// unchanged against a ticket that predates this feature.
+  additionalColorNames String[] @default([])
   tip       String
   note      String   @default("")
 

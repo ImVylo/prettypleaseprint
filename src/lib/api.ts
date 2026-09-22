@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/authz";
 import { storyRef, type Actor } from "@/lib/scope";
 import { StoryProblem, type CommentRow, type StoryRow } from "@/lib/stories";
+import { hexForColor } from "@/lib/catalog";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -177,6 +178,11 @@ export function storyResource(story: StoryRow) {
     quantity: story.quantity,
     material: story.material,
     color: { name: story.colorName, hex: story.colorHex },
+    /** Extra colours for a multi-colour print, beyond the primary above. */
+    additionalColors: story.additionalColorNames.map((name) => ({
+      name,
+      hex: hexForColor(name),
+    })),
     tip: story.tip,
     note: story.note,
     file: {

@@ -66,6 +66,17 @@ export const WishSchema = z.object({
     .default(""),
   material: z.enum(MATERIALS),
   colorName: z.enum(colorNames),
+  /// Optional extra colours for a multi-colour print (AMS/MMU/manual
+  /// filament swap). Capped at 3 — 4 colours total including the primary —
+  /// which covers every common multi-material setup without inviting a
+  /// print nobody can actually run. Duplicates and the primary colour itself
+  /// are stripped server-side (see the upload route) so the stored list is
+  /// always the *extra* colours, never a repeat of `colorName`.
+  additionalColorNames: z
+    .array(z.enum(colorNames))
+    .max(3, "Up to 3 additional colours — 4 total.")
+    .optional()
+    .default([]),
   quantity: QuantitySchema,
   // The tip is no longer a compile-time enum — it is an owner-managed list.
   // This module is shared with the client bundle and cannot read the database,

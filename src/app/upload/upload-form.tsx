@@ -93,6 +93,8 @@ export function UploadForm({
   const [material, setMaterial] = useState<string>(DEFAULT_MATERIAL);
   const [quantity, setQuantity] = useState<number>(1);
   const [color, setColor] = useState<string>(DEFAULT_COLOR.name);
+  const [multiColor, setMultiColor] = useState(false);
+  const [additionalColors, setAdditionalColors] = useState<string[]>([]);
   const [tip, setTip] = useState<string>(defaultTip);
   const [note, setNote] = useState("");
   const [printSettings, setPrintSettings] = useState("");
@@ -138,6 +140,7 @@ export function UploadForm({
     body.set("title", title);
     body.set("material", material);
     body.set("colorName", color);
+    additionalColors.forEach((c) => body.append("additionalColorNames", c));
     body.set("quantity", String(quantity));
     body.set("tip", tip);
     body.set("note", note);
@@ -306,7 +309,12 @@ export function UploadForm({
                 role="radio"
                 aria-checked={active}
                 aria-label={`${c.name} filament`}
-                onClick={() => setColor(c.name)}
+                onClick={() => {
+                  setColor(c.name);
+                  // The primary colour can never also be an "additional"
+                  // one — keep the two selections disjoint as they change.
+                  setAdditionalColors((prev) => prev.filter((n) => n !== c.name));
+                }}
                 className="flex w-[80px] cursor-pointer flex-col items-center gap-[7px] border-0 bg-transparent p-0"
               >
                 <span
@@ -330,6 +338,76 @@ export function UploadForm({
         <p className="mt-[11px] font-mono text-[11.5px] uppercase tracking-[0.04em] text-ink-3">
           {owner} confirms what&rsquo;s actually on the spool.
         </p>
+
+        {/* ---- multi-colour (AMS/MMU/manual swap) ---- */}
+        <label className="mt-[15px] flex cursor-pointer items-center gap-[8.8px]">
+          <input
+            type="checkbox"
+            checked={multiColor}
+            onChange={(e) => {
+              setMultiColor(e.target.checked);
+              if (!e.target.checked) setAdditionalColors([]);
+            }}
+            className="h-[18px] w-[18px] accent-cherry-dk"
+          />
+          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-ink-2">
+            This is a multi-colour print
+          </span>
+        </label>
+
+        {multiColor && (
+          <div className="mt-[11px] rounded-card border-[3px] border-dashed border-ink-3 bg-cream-2 p-[15px]">
+            <p className="m-0 mb-[11px] text-[13.5px] text-ink-2">
+              Pick up to 3 more colours (4 total) — an AMS, MMU or a filament
+              swap partway through. {owner} still confirms what&rsquo;s
+              actually loaded.
+            </p>
+            <div className="flex flex-wrap gap-[11px]">
+              {COLORS.filter((c) => c.name !== color).map((c) => {
+                const active = additionalColors.includes(c.name);
+                const atCap = additionalColors.length >= 3 && !active;
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={active}
+                    aria-label={`Add ${c.name} filament`}
+                    disabled={atCap}
+                    onClick={() =>
+                      setAdditionalColors((prev) =>
+                        active ? prev.filter((n) => n !== c.name) : [...prev, c.name],
+                      )
+                    }
+                    className={`flex w-[68px] flex-col items-center gap-[5px] border-0 bg-transparent p-0 ${
+                      atCap ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-[36px] w-[36px] rounded-full border-[3px] border-ink transition-transform ${
+                        active ? "scale-110 ring-[3px] ring-aqua ring-offset-2 ring-offset-cream-2" : ""
+                      }`}
+                      style={{ background: c.hex }}
+                    />
+                    <span
+                      className={`font-mono text-[10px] font-bold uppercase tracking-[0.04em] ${
+                        active ? "text-ink" : "text-ink-3"
+                      }`}
+                    >
+                      {c.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {additionalColors.length > 0 && (
+              <p className="m-0 mt-[11px] font-mono text-[11px] uppercase tracking-[0.04em] text-ink-3">
+                {color} + {additionalColors.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
       </fieldset>
 
       {/* ---- the tip jar ---- */}

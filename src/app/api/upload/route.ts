@@ -127,6 +127,7 @@ async function handleUpload(request: Request, user: Actor) {
     title: form.get("title") ?? "",
     material: form.get("material"),
     colorName: form.get("colorName"),
+    additionalColorNames: form.getAll("additionalColorNames"),
     quantity: form.get("quantity"),
     tip: form.get("tip"),
     note: form.get("note") ?? "",
@@ -179,6 +180,14 @@ async function handleUpload(request: Request, user: Actor) {
 
   const title = wish.data.title || filename.replace(/\.(stl|3mf)$/i, "");
 
+  // The stored list is always the *extra* colours: a duplicate of the
+  // primary, or a colour picked twice, collapses to one entry each. Order
+  // preserved (first pick wins) so a requester's ordering survives — some
+  // multi-colour setups care which colour goes in which slot.
+  const additionalColorNames = [...new Set(wish.data.additionalColorNames)].filter(
+    (name) => name !== wish.data.colorName,
+  );
+
   let story;
   try {
     story = await db.story.create({
@@ -190,6 +199,7 @@ async function handleUpload(request: Request, user: Actor) {
         material: wish.data.material,
         colorName: wish.data.colorName,
         colorHex: hexForColor(wish.data.colorName),
+        additionalColorNames,
         tip: wish.data.tip,
         note: wish.data.note,
         printSettings: wish.data.printSettings,

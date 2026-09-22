@@ -87,7 +87,7 @@ export default async function QueuePage({
                     </Link>
                     <p className="m-0 mt-[6px] text-[14px] text-ink-2">
                       {quantityText(story.quantity)} · {story.material} ·{" "}
-                      {story.colorName} · offers {story.tip}
+                      {[story.colorName, ...story.additionalColorNames].join(" + ")} · offers {story.tip}
                     </p>
                     <p className="m-0 mt-[4px] font-mono text-[11.5px] uppercase tracking-[0.05em] text-ink-3">
                       {story.uploader.name} · {relativeTime(story.createdAt)}

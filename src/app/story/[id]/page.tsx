@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getStoryOr404, printerName, requireUser, storyRef, FLOW } from "@/lib/authz";
-import { quantityText, relativeTime } from "@/lib/catalog";
+import { quantityText, relativeTime, hexForColor } from "@/lib/catalog";
 import { formatBytes } from "@/lib/models";
 import { AppHeader } from "@/components/app-header";
 import { Fact, Notice, StatusChip } from "@/components/ui";
@@ -126,13 +126,26 @@ export default async function StoryPage({
                 <Fact label="Quantity">{quantityText(story.quantity)}</Fact>
                 <Fact label="Material">{story.material}</Fact>
                 <Fact label="Colour wish">
-                  <span className="flex items-center gap-[8.8px]">
-                    <span
-                      aria-hidden
-                      className="h-[18px] w-[18px] rounded-full border-2 border-ink"
-                      style={{ background: story.colorHex }}
-                    />
-                    {story.colorName}
+                  <span className="flex flex-wrap items-center gap-[8.8px]">
+                    <span className="flex items-center gap-[6px]">
+                      <span
+                        aria-hidden
+                        className="h-[18px] w-[18px] rounded-full border-2 border-ink"
+                        style={{ background: story.colorHex }}
+                      />
+                      {story.colorName}
+                    </span>
+                    {story.additionalColorNames.map((name) => (
+                      <span key={name} className="flex items-center gap-[5px]">
+                        <span aria-hidden className="text-ink-3">+</span>
+                        <span
+                          aria-hidden
+                          className="h-[15px] w-[15px] rounded-full border-2 border-ink"
+                          style={{ background: hexForColor(name) }}
+                        />
+                        <span className="text-[13px] text-ink-2">{name}</span>
+                      </span>
+                    ))}
                   </span>
                 </Fact>
                 <Fact label="On offer">

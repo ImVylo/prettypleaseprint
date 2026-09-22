@@ -101,6 +101,17 @@ const STORY_SCHEMA = {
         hex: { type: "string", examples: ["#4a5d78"] },
       },
     },
+    additionalColors: {
+      type: "array",
+      description: "Extra colours for a multi-colour print, beyond `color` above. Empty for a single-colour ticket.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", enum: COLORS.map((c) => c.name) },
+          hex: { type: "string", examples: ["#eaecee"] },
+        },
+      },
+    },
     tip: { type: "string", enum: [...TIPS] },
     note: { type: "string" },
     file: {
