@@ -21,7 +21,7 @@ services:
   # Model files (.stl/.3mf) live here, never in the web root. Served only
   # through signed URLs gated by the ownership check in src/lib/authz.ts.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: ppp-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
