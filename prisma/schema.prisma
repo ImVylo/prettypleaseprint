@@ -297,6 +297,17 @@ model Story {
   // A real slicer integration would add one back — see src/lib/models.ts.
   dims String?
 
+  /// Actual filament used, in grams — entered by the owner once known
+  /// (weighed, or read off the slicer after the real print), never guessed
+  /// at upload time. Same reasoning as the dropped print-time estimate: a
+  /// number nobody measured is not shown. Cost is derived from this plus
+  /// `printMinutes` and the current MaterialRate — see src/lib/cost.ts.
+  weightGrams Int?
+  /// Actual wall-clock print time in minutes, entered by the owner the same
+  /// way as `weightGrams`. Deliberately not an estimate at any point in the
+  /// flow — see docs/architecture.md "Why there is no print-time estimate".
+  printMinutes Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -338,6 +349,35 @@ model Notification {
 
   @@index([recipientId, read])
   @@map("notification")
+}
+
+/// Owner-managed $/kg by material, plus one shared $/hour machine rate — the
+/// inputs the cost calculator needs (src/lib/cost.ts). Mirrors Benefit: a
+/// single-row-per-material table the owner edits, not a hardcoded const, so
+/// updating a filament price never touches code. A past ticket's computed
+/// cost is not stored — cost is derived at render time from the ticket's
+/// `material` + `weightGrams` + `printMinutes` and the CURRENT rate, exactly
+/// like the rest of this app's "nothing inferred, nothing stale" rule for
+/// numbers on a ticket. If prices need to be historical later, snapshot the
+/// rate onto the Story at completion instead of changing this table's shape.
+model MaterialRate {
+  material       Material @id
+  dollarsPerKg   Float
+  updatedAt      DateTime @updatedAt
+
+  @@map("material_rate")
+}
+
+/// The single shared hourly machine rate (electricity, wear, amortised
+/// upkeep). One row, id fixed at "default" — simpler than a singleton table
+/// pattern with no id at all, and consistent with how Prisma expects a
+/// primary key.
+model MachineRate {
+  id             String   @id @default("default")
+  dollarsPerHour Float
+  updatedAt      DateTime @updatedAt
+
+  @@map("machine_rate")
 }
 
 // ===========================================================================

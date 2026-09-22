@@ -136,6 +136,8 @@ export const STORY_FIELDS = {
   fileSize: true,
   mimeType: true,
   dims: true,
+  weightGrams: true,
+  printMinutes: true,
   createdAt: true,
   updatedAt: true,
   uploaderId: true,

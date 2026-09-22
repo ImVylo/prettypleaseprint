@@ -14,6 +14,7 @@ import { DownloadModel } from "@/components/download-model";
 import { Toast } from "@/components/toast";
 import { WithdrawStory } from "@/components/withdraw-story";
 import { RequeueStory } from "@/components/requeue-story";
+import { CostPanel } from "@/components/cost-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +154,17 @@ export default async function StoryPage({
                 </p>
               </div>
             )}
+
+            {/* Cost calculator — homelab addition. Computed only from actual
+                weight/print-time once the owner records them; never a guess. */}
+            <CostPanel
+              storyId={story.id}
+              material={story.material}
+              weightGrams={story.weightGrams}
+              printMinutes={story.printMinutes}
+              isAdmin={user.role === "admin"}
+              from={`/story/${story.id}`}
+            />
 
             <section className="mt-[26.4px]">
               <h2 className="m-0 mb-[13.2px] font-display text-[22px] text-ink">

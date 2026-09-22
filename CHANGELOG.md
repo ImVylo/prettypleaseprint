@@ -7,6 +7,19 @@ Notable changes. Every entry names a released version; deployments pin
 
 ### Added
 
+- **Cost calculator.** A ticket shows what it actually cost — filament by
+  weight, machine time by minutes — the moment the printer owner records
+  them at `/story/[id]`. Never a guess: exactly the rule the dropped
+  print-time estimate already set, applied to money instead of minutes.
+  Rates ($/kg per material, one shared $/hour machine rate) are owner-managed
+  data at `/admin/rates`, seeded with sane defaults on first deploy.
+- **Outbound webhook notifications.** Set `WEBHOOK_URL` to a Discord (or
+  Slack-compatible) incoming webhook and every event that already reaches the
+  in-app Activity feed — new upload, status change, flag, comment — posts
+  there too, best-effort. Unset by default; nothing changes if it is never
+  configured.
+
+
 - **`/admin/audit` is a dashboard now, not just a log.** The page was built on
   the argument that a screen somebody glances at beats alerts nobody tunes —
   which only holds if somebody actually looks, and a wall of rows is not

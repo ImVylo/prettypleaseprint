@@ -46,6 +46,10 @@ export type AuditAction =
   // benefits (the owner-managed tip catalogue)
   | "benefit.created"
   | "benefit.updated"
+  // cost calculator rates (owner-managed $/kg and $/hour)
+  | "rate.material_updated"
+  | "rate.machine_updated"
+  | "story.actuals_recorded"
   // feature requests (the 'frr' track)
   | "feature.created"
   | "feature.status_changed"
