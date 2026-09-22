@@ -98,6 +98,7 @@ export function UploadForm({
   const [tip, setTip] = useState<string>(defaultTip);
   const [note, setNote] = useState("");
   const [printSettings, setPrintSettings] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
 
   /**
    * Client-side checks are for fast feedback only — the server re-runs all of
@@ -145,6 +146,7 @@ export function UploadForm({
     body.set("tip", tip);
     body.set("note", note);
     body.set("printSettings", printSettings);
+    body.set("sourceUrl", sourceUrl);
 
     // XHR rather than fetch: it is still the only way to observe upload
     // progress, and a large model over office wifi needs a real bar.
@@ -266,6 +268,24 @@ export function UploadForm({
             onChange={setMaterial}
           />
         </div>
+      </div>
+
+      {/* ---- source link (optional) ---- */}
+      <div className="mt-[22px]">
+        <Label htmlFor="sourceUrl">Found it online? Link it (optional)</Label>
+        <input
+          id="sourceUrl"
+          type="url"
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+          maxLength={2000}
+          placeholder="https://makerworld.com/en/models/…"
+          className="w-full rounded-card border-[3px] border-ink bg-porcelain px-[15px] py-[12px] text-[16px] text-ink placeholder:text-ink-3"
+        />
+        <p className="m-0 mt-[6px] font-mono text-[11px] uppercase tracking-[0.04em] text-ink-3">
+          A MakerWorld, Printables or Thingiverse page. Reference only — still
+          upload the .stl/.3mf below yourself.
+        </p>
       </div>
 
       {/* ---- quantity ---- */}

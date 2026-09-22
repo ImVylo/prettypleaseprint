@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/authz";
-import { RateProblem, recordActuals, setMachineRate, setMaterialRate } from "@/lib/cost";
+import { RateProblem, recordActuals, setMachineRate } from "@/lib/cost";
 
 /**
  * The owner's controls for cost rates and per-ticket actuals, as plain
@@ -14,18 +14,6 @@ import { RateProblem, recordActuals, setMachineRate, setMaterialRate } from "@/l
 
 function back(params: Record<string, string>): never {
   redirect(`/admin/rates?${new URLSearchParams(params).toString()}`);
-}
-
-export async function setMaterialRateAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
-  const material = String(formData.get("material") ?? "");
-  try {
-    const r = await setMaterialRate(admin, material, formData.get("dollarsPerKg"));
-    back({ toast: `${r.material} set to $${r.dollarsPerKg.toFixed(2)}/kg` });
-  } catch (error) {
-    if (error instanceof RateProblem) back({ error: error.message });
-    throw error;
-  }
 }
 
 export async function setMachineRateAction(formData: FormData): Promise<void> {

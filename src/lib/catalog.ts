@@ -103,6 +103,18 @@ export const WishSchema = z.object({
     .max(2000, "Those print settings are very long.")
     .optional()
     .default(""),
+  // Where the model came from, if the requester didn't make it themselves —
+  // a MakerWorld/Printables/Thingiverse/Thangs link, say. Reference only:
+  // nothing is fetched from it. `.or(z.literal(""))` because an empty form
+  // field arrives as "", and that should mean "no source", not a validation
+  // error on a field nobody filled in.
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(2000, "That URL is oddly long.")
+    .refine((s) => s === "" || /^https?:\/\//i.test(s), "That doesn't look like a URL (needs http:// or https://).")
+    .optional()
+    .default(""),
 });
 
 export type Wish = z.infer<typeof WishSchema>;

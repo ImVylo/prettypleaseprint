@@ -133,6 +133,7 @@ async function handleUpload(request: Request, user: Actor) {
     tip: form.get("tip"),
     note: form.get("note") ?? "",
     printSettings: form.get("printSettings") ?? "",
+    sourceUrl: form.get("sourceUrl") ?? "",
   });
   if (!wish.success) {
     return bad(400, wish.error.issues[0]?.message ?? "Check the form.");
@@ -211,6 +212,7 @@ async function handleUpload(request: Request, user: Actor) {
         tip: wish.data.tip,
         note: wish.data.note,
         printSettings: wish.data.printSettings,
+        sourceUrl: wish.data.sourceUrl || null,
         filename,
         fileSize: bytes.length,
         mimeType: MIME_FOR[extension] ?? "application/octet-stream",

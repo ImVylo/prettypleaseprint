@@ -7,6 +7,21 @@ Notable changes. Every entry names a released version; deployments pin
 
 ### Added
 
+- **Model source link.** An optional URL on upload — MakerWorld, Printables,
+  Thingiverse, Thangs — shown on the ticket as a plain reference link.
+  Nothing is fetched from it: neither Bambu Lab nor MakerWorld publishes a
+  download API, and scraping their pages would be brittle and outside their
+  terms. The requester still uploads the actual .stl/.3mf themselves; this
+  just saves the owner a round trip through chat to see the original page.
+- **Materials and their prices live together.** Per-material $/kg pricing
+  moved from `/admin/rates` onto `/admin/materials`, next to the material
+  itself — a material and its price are one fact, not two pages that could
+  say different things about the same material. Retiring a material no
+  longer orphans its rate: the price stays on record (so a past ticket that
+  used it still costs correctly) but moves to a separate "Retired" section
+  instead of cluttering the live list. `/admin/rates` is now just the one
+  shared machine $/hour rate, which isn't a property of any material.
+
 - **Multi-colour printing.** A requester can check "multi-colour print" on
   upload and pick up to 3 extra colours (4 total) — an AMS, MMU, or manual
   filament swap. Stored as `Story.additionalColorNames`, shown on the story

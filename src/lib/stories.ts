@@ -139,6 +139,7 @@ export const STORY_FIELDS = {
   dims: true,
   weightGrams: true,
   printMinutes: true,
+  sourceUrl: true,
   createdAt: true,
   updatedAt: true,
   uploaderId: true,
@@ -576,6 +577,7 @@ export async function requeueStory(actor: Actor, id: number) {
     select: {
       id: true, title: true, quantity: true, material: true, colorName: true,
       colorHex: true, additionalColorNames: true, tip: true, note: true, printSettings: true,
+      sourceUrl: true,
       filename: true, fileSize: true,
       mimeType: true, storageKey: true, dims: true, uploaderId: true,
     },
@@ -608,6 +610,7 @@ export async function requeueStory(actor: Actor, id: number) {
       tip: src.tip,
       note: src.note,
       printSettings: src.printSettings,
+      sourceUrl: src.sourceUrl,
       filename: src.filename,
       fileSize: src.fileSize,
       mimeType: src.mimeType,

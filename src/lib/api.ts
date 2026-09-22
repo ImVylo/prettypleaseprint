@@ -185,6 +185,7 @@ export function storyResource(story: StoryRow) {
     })),
     tip: story.tip,
     note: story.note,
+    sourceUrl: story.sourceUrl,
     file: {
       filename: story.filename,
       size: story.fileSize,

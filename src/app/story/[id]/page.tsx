@@ -114,6 +114,22 @@ export default async function StoryPage({
             <h1 className="m-0 mb-[13.2px] text-[36px] leading-[1.02] text-ink">
               {story.title}
             </h1>
+            {story.sourceUrl && (
+              <p className="m-0 mb-[13.2px] text-[13.5px]">
+                <a
+                  href={story.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="font-mono font-bold uppercase tracking-[0.04em] text-cherry-dk underline underline-offset-4 hover:text-cherry"
+                >
+                  Source ↗
+                </a>
+                <span className="ml-[6px] text-ink-3">
+                  — where the model came from. Not fetched or verified by
+                  this app.
+                </span>
+              </p>
+            )}
             {story.note && (
               <p className="m-0 mb-[22px] text-[16px] leading-[1.55] text-ink-2 text-pretty">
                 {story.note}

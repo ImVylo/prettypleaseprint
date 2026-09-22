@@ -39,6 +39,7 @@ function assertAdmin(actor: Actor) {
 
 function refresh() {
   revalidatePath("/admin/rates");
+  revalidatePath("/admin/materials");
   revalidatePath("/queue");
   revalidatePath("/board");
 }
@@ -68,6 +69,49 @@ export async function rateTable(): Promise<{
   const perKg: Record<string, number> = {};
   for (const m of materials) perKg[m.material] = m.dollarsPerKg;
   return { perKg, perHour: hour };
+}
+
+/**
+ * Materials joined with their $/kg rate, split by whether the material is
+ * still active — the shape `/admin/materials` renders from, so pricing and
+ * the retire toggle live in one place instead of two pages that can drift.
+ *
+ * A retired material's rate row is never deleted (a past ticket that used
+ * it still needs a real number for `estimateCost`), but it moves out of the
+ * "live" list here so the page the owner edits day to day isn't cluttered
+ * with prices for things nobody can request any more.
+ */
+export type MaterialWithRate = {
+  id: string;
+  name: string;
+  active: boolean;
+  dollarsPerKg: number;
+};
+
+export async function listMaterialsWithRates(): Promise<{
+  live: MaterialWithRate[];
+  retired: MaterialWithRate[];
+}> {
+  const [materials, rates] = await Promise.all([
+    db.material.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    db.materialRate.findMany(),
+  ]);
+  const rateByName = new Map(rates.map((r) => [r.material, r.dollarsPerKg]));
+
+  const rows: MaterialWithRate[] = materials.map((m) => ({
+    id: m.id,
+    name: m.name,
+    active: m.active,
+    // A material somehow missing a rate row (shouldn't happen — createMaterial
+    // always seeds one) reads as $0 rather than throwing, consistent with
+    // estimateCost's own fallback.
+    dollarsPerKg: rateByName.get(m.name) ?? 0,
+  }));
+
+  return {
+    live: rows.filter((r) => r.active),
+    retired: rows.filter((r) => !r.active),
+  };
 }
 
 // ---------------------------------------------------------------------------

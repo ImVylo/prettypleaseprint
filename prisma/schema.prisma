@@ -288,6 +288,16 @@ model Story {
   /// structured/gated "advanced mode".
   printSettings String @default("")
 
+  /// Where the model came from, if not made by the requester — a MakerWorld,
+  /// Printables, Thingiverse or Thangs URL, say. No fetching happens against
+  /// it: neither Bambu Lab nor MakerWorld publishes a download API, and
+  /// scraping their pages would be brittle and outside their terms. This is
+  /// purely a reference link on the ticket so the owner can open the source
+  /// page themselves — slicer settings, prints/likes, the maker's notes —
+  /// without a round trip through chat. Optional; the requester still
+  /// uploads the actual .stl/.3mf as normal.
+  sourceUrl String?
+
   flagged    Boolean @default(false)
   flagReason String?
 

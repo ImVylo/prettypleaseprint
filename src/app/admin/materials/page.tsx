@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/authz";
-import { listAllMaterials } from "@/lib/materials";
+import { listMaterialsWithRates } from "@/lib/cost";
 import { AppHeader } from "@/components/app-header";
 import { Kicker, Notice } from "@/components/ui";
 import { Toast } from "@/components/toast";
@@ -7,21 +7,31 @@ import {
   createMaterialAction,
   renameMaterialAction,
   setMaterialActiveAction,
+  setMaterialRateAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Manage the materials catalogue — what a request can be made from.
- * Admin-only, same shape as /admin/benefits: `requireAdmin` answers 404, so
- * a client learns nothing about this route.
+ * Manage the materials catalogue — what a request can be made from, and
+ * what it costs per kg. Admin-only, same shape as /admin/benefits.
  *
- * Materials used to be a fixed enum (PLA/PETG/TPU/Resin), which meant adding
- * one was a migration and a redeploy. Now it is owner-managed data, exactly
- * like the tip catalogue — retire one to take it off the upload form without
- * touching past requests that used it, or add a new one (Nylon, ABS, PC…)
- * with nothing more than this form. A cost-calculator rate is created
- * automatically at $0/kg — set the real price at /admin/rates.
+ * Materials used to be a fixed enum (PLA/PETG/TPU/Resin), which meant
+ * adding one was a migration and a redeploy. Now it is owner-managed data:
+ * add, rename or retire from here with nothing more than this form.
+ *
+ * Pricing lives on the same row as the material itself rather than on a
+ * separate page — a material and its $/kg are one fact, not two, and
+ * splitting them across /admin/materials and /admin/rates meant the two
+ * could say different things about the same material with nothing to
+ * notice. The machine's shared $/hour rate is the only thing left at
+ * /admin/rates, since it isn't a property of any one material.
+ *
+ * Retiring a material never deletes its rate: a past ticket priced in a
+ * material nobody offers any more still needs a real number to compute its
+ * cost from (src/lib/cost.ts). Retired rows move to their own section below
+ * so the list you edit day to day isn't cluttered with prices for things
+ * that can no longer be requested.
  */
 export default async function MaterialsPage({
   searchParams,
@@ -29,10 +39,7 @@ export default async function MaterialsPage({
   searchParams: Promise<{ toast?: string; error?: string }>;
 }) {
   const [{ toast, error }, admin] = await Promise.all([searchParams, requireAdmin()]);
-  const materials = await listAllMaterials();
-
-  const live = materials.filter((m) => m.active);
-  const retired = materials.filter((m) => !m.active);
+  const { live, retired } = await listMaterialsWithRates();
 
   return (
     <>
@@ -41,14 +48,15 @@ export default async function MaterialsPage({
       <main className="mx-auto w-full max-w-[880px] px-[26.4px] pb-[80px] pt-[35.2px]">
         <Kicker>Materials</Kicker>
         <h1 className="m-0 mt-[6px] mb-[8px] font-display text-[30px] leading-[1.05] text-ink">
-          What you print with
+          What you print with, and what it costs
         </h1>
         <p className="m-0 mb-[22px] max-w-[62ch] text-[15px] text-ink-2">
-          The materials a request can be made from. Add one (Nylon, ABS,
-          PC…) and it appears on the upload form immediately — no redeploy.
-          Retire one to take it off the list without touching past requests
-          that used it. New materials start at $0/kg on the cost calculator;
-          set the real price at <a href="/admin/rates" className="underline underline-offset-2">/admin/rates</a>.
+          Add a material (Nylon, ABS, PC…) and it appears on the upload form
+          immediately — no redeploy. Retire one to take it off the list
+          without touching past requests that used it; its price stays on
+          record so those tickets still cost correctly. Machine time is
+          priced separately at{" "}
+          <a href="/admin/rates" className="underline underline-offset-2">/admin/rates</a>.
         </p>
 
         {error && (
@@ -84,7 +92,7 @@ export default async function MaterialsPage({
           </button>
         </form>
 
-        {/* Live list */}
+        {/* Live list: name + price + retire, one row each */}
         <div className="flex flex-col gap-[11px]">
           {live.map((m) => (
             <div
@@ -92,15 +100,36 @@ export default async function MaterialsPage({
               className="rounded-card border-[3px] border-ink bg-porcelain p-[15px] shadow-stamp"
             >
               <div className="flex flex-wrap items-center gap-[8.8px]">
-                <form action={renameMaterialAction} className="flex flex-[1_1_240px] items-center gap-[8px]">
+                <form action={renameMaterialAction} className="flex flex-[1_1_180px] items-center gap-[8px]">
                   <input type="hidden" name="id" value={m.id} />
                   <input
                     name="name"
                     defaultValue={m.name}
                     maxLength={40}
                     aria-label={`Rename ${m.name}`}
-                    className="min-w-[140px] flex-1 rounded-[8px] border-[3px] border-ink bg-cream-2 px-[11px] py-[7px] font-bold text-[15px] text-ink"
+                    className="min-w-[120px] flex-1 rounded-[8px] border-[3px] border-ink bg-cream-2 px-[11px] py-[7px] font-bold text-[15px] text-ink"
                   />
+                  <button
+                    type="submit"
+                    className="cursor-pointer rounded-chip border-2 border-ink bg-porcelain px-[12px] py-[6px] font-mono text-[11px] font-bold uppercase text-ink hover:bg-sun"
+                  >
+                    Save
+                  </button>
+                </form>
+
+                <form action={setMaterialRateAction} className="flex items-center gap-[6px]">
+                  <input type="hidden" name="material" value={m.name} />
+                  <span className="font-mono text-[13px] text-ink-2">$</span>
+                  <input
+                    name="dollarsPerKg"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={m.dollarsPerKg}
+                    aria-label={`${m.name} price per kilogram`}
+                    className="w-[85px] rounded-[8px] border-[3px] border-ink bg-cream-2 px-[9px] py-[6px] font-bold text-[14px] text-ink"
+                  />
+                  <span className="font-mono text-[11px] text-ink-3">/kg</span>
                   <button
                     type="submit"
                     className="cursor-pointer rounded-chip border-2 border-ink bg-porcelain px-[12px] py-[6px] font-mono text-[11px] font-bold uppercase text-ink hover:bg-sun"
@@ -129,10 +158,14 @@ export default async function MaterialsPage({
           )}
         </div>
 
-        {/* Retired */}
+        {/* Retired: rate kept for past tickets, but out of the way */}
         {retired.length > 0 && (
           <section className="mt-[35.2px]">
-            <h2 className="m-0 mb-[13.2px] font-display text-[20px] text-ink">Retired</h2>
+            <h2 className="m-0 mb-[8px] font-display text-[20px] text-ink">Retired</h2>
+            <p className="m-0 mb-[13.2px] text-[13.5px] text-ink-2">
+              Off the upload form. Prices stay on record so tickets that used
+              them still cost correctly.
+            </p>
             <div className="flex flex-col gap-[8.8px]">
               {retired.map((m) => (
                 <div
@@ -140,6 +173,7 @@ export default async function MaterialsPage({
                   className="flex flex-wrap items-center justify-between gap-[8.8px] rounded-card border-[3px] border-ink bg-cream-2 px-[15px] py-[11px] opacity-80"
                 >
                   <span className="font-bold text-[15px] text-ink-2 line-through">{m.name}</span>
+                  <span className="font-mono text-[12.5px] text-ink-3">${m.dollarsPerKg.toFixed(2)}/kg</span>
                   <form action={setMaterialActiveAction}>
                     <input type="hidden" name="id" value={m.id} />
                     <input type="hidden" name="active" value="true" />
