@@ -2,7 +2,7 @@ import { mintSlicerToken } from "@/lib/slicer-token";
 
 /**
  * "Open in PrusaSlicer" / "Open in BambuStudio" — two links to custom
- * schemes (`ppp://`, `ppp-bambu://`) that a local helper on the viewer's
+ * schemes (`byd://`, `byd-bambu://`) that a local helper on the viewer's
  * own machine handles.
  *
  * Why a bare `<a>` to a custom scheme rather than a download, a signed URL,
@@ -56,7 +56,7 @@ export function OpenInSlicer({
       <div className="mt-[8.8px] flex flex-wrap gap-[13.2px] rounded-card border-[3px] border-ink bg-cream-2 p-[13.2px]">
         <div>
           <a
-            href={`ppp://slice/${storyId}?t=${token}`}
+            href={`byd://slice/${storyId}?t=${token}`}
             className="stamp inline-block cursor-pointer rounded-chip border-[3px] border-ink bg-cherry-dk px-[18px] py-[8px] text-[14px] font-bold text-cream hover:bg-cherry"
           >
             Open in PrusaSlicer
@@ -64,7 +64,7 @@ export function OpenInSlicer({
         </div>
         <div>
           <a
-            href={`ppp-bambu://slice/${storyId}?t=${token}`}
+            href={`byd-bambu://slice/${storyId}?t=${token}`}
             className="stamp inline-block cursor-pointer rounded-chip border-[3px] border-ink bg-aqua px-[18px] py-[8px] text-[14px] font-bold text-ink hover:bg-aqua-wash"
           >
             Open in BambuStudio
@@ -74,7 +74,7 @@ export function OpenInSlicer({
           Opens on <strong>this</strong> machine. Needs the one-time helper —
           see{" "}
           <a
-            href="https://github.com/danileau/prettypleaseprint/blob/main/docs/prusaslicer.md"
+            href="https://github.com/ImVylo/prettypleaseprint/blob/main/docs/prusaslicer.md"
             target="_blank"
             rel="noreferrer noopener"
             className="underline underline-offset-2 hover:text-cherry-dk"

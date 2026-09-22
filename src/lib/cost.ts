@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { record } from "@/lib/audit";
-import type { Actor } from "@/lib/scope";
+import { storyRef, type Actor } from "@/lib/scope";
 
 /**
  * The cost calculator — homelab addition on top of the upstream app.
@@ -253,7 +253,7 @@ export async function recordActuals(
   await record({
     action: "story.actuals_recorded",
     actor,
-    subject: `PPP-${100 + storyId}`,
+    subject: storyRef(storyId),
     detail: { weightGrams: updated.weightGrams, printMinutes: updated.printMinutes },
   });
 

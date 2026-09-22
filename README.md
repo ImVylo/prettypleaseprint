@@ -1,10 +1,10 @@
-# Pretty Please Print
+# BYD Printing
 
-[![CI](https://github.com/danileau/prettypleaseprint/actions/workflows/ci.yml/badge.svg)](https://github.com/danileau/prettypleaseprint/actions/workflows/ci.yml)
+[![CI](https://github.com/ImVylo/prettypleaseprint/actions/workflows/ci.yml/badge.svg)](https://github.com/ImVylo/prettypleaseprint/actions/workflows/ci.yml)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-docker%20compose-2496ed)](docs/deployment.md)
-[![Stars](https://img.shields.io/github/stars/danileau/prettypleaseprint?style=flat)](https://github.com/danileau/prettypleaseprint/stargazers)
-[![Forks](https://img.shields.io/github/forks/danileau/prettypleaseprint?style=flat)](https://github.com/danileau/prettypleaseprint/network/members)
+[![Stars](https://img.shields.io/github/stars/ImVylo/prettypleaseprint?style=flat)](https://github.com/ImVylo/prettypleaseprint/stargazers)
+[![Forks](https://img.shields.io/github/forks/ImVylo/prettypleaseprint?style=flat)](https://github.com/ImVylo/prettypleaseprint/network/members)
 
 **Invite-only 3D print requests for a small office.** One person owns the
 printer. Everyone else uploads a model, says what they are hoping for, and
@@ -100,7 +100,7 @@ that: there is no multi-tenancy, no billing, and no queue theory.
 ## Quick start
 
 ```bash
-git clone https://github.com/danileau/prettypleaseprint.git && cd prettypleaseprint
+git clone https://github.com/ImVylo/prettypleaseprint.git && cd prettypleaseprint
 cp .env.docker.example .env.docker
 ```
 
@@ -450,5 +450,5 @@ benefit publicly, and nothing from those who merely use it.
 If your organisation's policy forbids AGPL software — some do, blanket-style —
 you are welcome to ask about other terms.
 
-Built from the design handoff in `Pretty Please Print/`, which is why story refs
-read `PPP-104` and the copy sounds like a diner.
+Built from the design handoff in `Pretty Please Print/` (the original upstream name), which is why story refs
+read `BYD-104` and the copy sounds like a diner.

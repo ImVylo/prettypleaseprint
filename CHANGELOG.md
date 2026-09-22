@@ -5,6 +5,18 @@ Notable changes. Every entry names a released version; deployments pin
 
 ## Unreleased
 
+### Changed
+
+- **"PPP" -> "BYD" everywhere.** Ticket ref prefix (`PPP-104` -> `BYD-104`),
+  the slicer-bridge URL schemes (`ppp://` -> `byd://`, `ppp-bambu://` ->
+  `byd-bambu://`), their config/log/cache paths (`~/.config/ppp` ->
+  `~/.config/byd`, etc.), env var names (`PPP_BASE` -> `BYD_BASE` and so on),
+  the auth cookie prefix, and CSS animation class names. Internal-only infra
+  IDs (the Postgres user/db name, container names, `PPP_TAG`/`PPP_REGISTRY`
+  in the self-host compose files) were deliberately left alone: renaming them
+  on the live deployment would mean migrating real data for a change nobody
+  sees, so it stays for a future fresh deploy instead.
+
 ### Added
 
 - **Open in BambuStudio.** Same trick as "Open in PrusaSlicer", one scheme

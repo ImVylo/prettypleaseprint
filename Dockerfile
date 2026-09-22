@@ -65,7 +65,7 @@ COPY package.json /tmp/package.json
 RUN node -e "\
       const p = require('/tmp/package.json'); \
       require('fs').writeFileSync('package.json', JSON.stringify({ \
-        name: 'ppp-migrate', private: true, \
+        name: 'byd-migrate', private: true, \
         dependencies: { \
           prisma: p.devDependencies.prisma, \
           '@prisma/client': p.dependencies['@prisma/client'], \

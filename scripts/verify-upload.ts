@@ -218,7 +218,7 @@ async function main() {
   const res = await upload(aylaB, "monitor-hook-v3.stl", binaryStl(78, 40, 22));
   const payload = res.status === 200 ? await res.json() : { error: await res.text() };
   check("upload accepted", res.status === 200, `status ${res.status} ${JSON.stringify(payload).slice(0, 140)}`);
-  check("the response carries the display ref", payload.ref === "PPP-" + (100 + payload.id), JSON.stringify(payload));
+  check("the response carries the display ref", payload.ref === "BYD-" + (100 + payload.id), JSON.stringify(payload));
 
   const story = await db.story.findFirst({ where: { uploaderId: ayla.id } });
   check("a story row exists, owned by the uploader", story?.uploaderId === ayla.id);

@@ -189,7 +189,7 @@
    none of them animate layout.
    --------------------------------------------------------------------------- */
 
-@keyframes ppp-in {
+@keyframes byd-in {
   from {
     opacity: 0;
     transform: translateY(6px);
@@ -200,7 +200,7 @@
   }
 }
 
-@keyframes ppp-toast {
+@keyframes byd-toast {
   from {
     opacity: 0;
     transform: translate(-50%, 12px);
@@ -213,7 +213,7 @@
 
 /* The neon sign warming up — two quick flickers, then steady. Runs once on
    load and never again, so it reads as a sign coming on rather than a fault. */
-@keyframes ppp-neon {
+@keyframes byd-neon {
   0%,
   18%,
   22% {
@@ -227,7 +227,7 @@
 }
 
 /* An extruder laying down one more layer: the bar grows, it does not slide. */
-@keyframes ppp-extrude {
+@keyframes byd-extrude {
   from {
     transform: scaleX(0.15);
   }
@@ -236,18 +236,18 @@
   }
 }
 
-.ppp-in {
-  animation: ppp-in 180ms ease-out;
+.byd-in {
+  animation: byd-in 180ms ease-out;
 }
-.ppp-toast {
-  animation: ppp-toast 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+.byd-toast {
+  animation: byd-toast 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
-.ppp-neon {
-  animation: ppp-neon 1.1s ease-out 1;
+.byd-neon {
+  animation: byd-neon 1.1s ease-out 1;
 }
-.ppp-extrude {
+.byd-extrude {
   transform-origin: left center;
-  animation: ppp-extrude 260ms ease-out;
+  animation: byd-extrude 260ms ease-out;
 }
 
 /* A pressed enamel button sinks onto its own shadow. */
@@ -268,10 +268,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ppp-in,
-  .ppp-toast,
-  .ppp-neon,
-  .ppp-extrude {
+  .byd-in,
+  .byd-toast,
+  .byd-neon,
+  .byd-extrude {
     animation: none;
   }
   .stamp,

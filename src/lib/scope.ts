@@ -30,13 +30,13 @@ export function storyScope(actor: Actor): Prisma.StoryWhereInput {
 }
 
 /**
- * Display key: PPP-104 for story 4.
+ * Display key: BYD-104 for story 4.
  *
  * The handoff writes this as "PTFM-", after the product's old name. The
  * prefix exists to be recognisable when someone pastes it into chat, so it
  * tracks what the product is actually called.
  */
-export const storyRef = (id: number) => `PPP-${100 + id}`;
+export const storyRef = (id: number) => `BYD-${100 + id}`;
 
 /**
  * The order a request moves through, and the only order it may move in.

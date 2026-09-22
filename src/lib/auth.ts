@@ -179,7 +179,7 @@ export const auth = betterAuth({
   },
 
   advanced: {
-    cookiePrefix: "ppp",
+    cookiePrefix: "byd",
     useSecureCookies: isHttps,
     defaultCookieAttributes: {
       httpOnly: true,

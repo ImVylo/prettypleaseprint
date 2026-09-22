@@ -85,8 +85,8 @@ const STORY_SCHEMA = {
     id: { type: "integer", examples: [4] },
     ref: {
       type: "string",
-      description: "The display reference, `PPP-` + (100 + id). What people paste into chat.",
-      examples: ["PPP-104"],
+      description: "The display reference, `BYD-` + (100 + id). What people paste into chat.",
+      examples: ["BYD-104"],
     },
     title: { type: "string", examples: ["Cable clip"] },
     status: { type: "string", enum: [...FLOW, "Declined"] },
@@ -156,7 +156,7 @@ const COMMENT_SCHEMA = {
   properties: {
     id: { type: "string" },
     storyId: { type: "integer" },
-    ref: { type: "string", examples: ["PPP-104"] },
+    ref: { type: "string", examples: ["BYD-104"] },
     body: { type: "string" },
     author: {
       type: "object",
@@ -190,7 +190,7 @@ const storyIdParam = {
   name: "id",
   in: "path",
   required: true,
-  description: "The numeric story id — `4`, not `PPP-104`.",
+  description: "The numeric story id — `4`, not `BYD-104`.",
   schema: { type: "integer", minimum: 1 },
 } as const;
 
@@ -809,7 +809,7 @@ export async function buildOpenApiDocument() {
                     type: "object",
                     properties: {
                       id: { type: "integer" },
-                      ref: { type: "string", examples: ["PPP-104"] },
+                      ref: { type: "string", examples: ["BYD-104"] },
                       title: { type: "string" },
                       dims: { type: ["string", "null"] },
                     },

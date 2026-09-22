@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# ppp-bambu → BambuStudio bridge. Handles a `ppp-bambu://slice/<id>` link by
-# fetching the model from a Pretty Please Print instance and opening it in a
-# local BambuStudio.
+# byd-bambu → BambuStudio bridge. Handles a `byd-bambu://slice/<id>` link by
+# fetching the model from a BYD Printing instance and opening it in a local
+# BambuStudio.
 #
 # Runs ON THE PERSON'S OWN MACHINE — same shape as scripts/prusa-open.sh, and
 # for the same reason: BambuStudio's own `bambustudioopen://` URL handler only
@@ -20,23 +20,23 @@
 # would need its own install/versioning story to get the same guarantee, for
 # maybe forty lines saved.
 #
-# Config lives at $PPP_SLICER_CONF (default ~/.config/ppp/slicer.conf) —
+# Config lives at $BYD_SLICER_CONF (default ~/.config/byd/slicer.conf) —
 # the SAME file prusa-open.sh reads, since both bridges belong to the same
 # app instance:
-#   PPP_BASE          the instance, e.g. https://print.example         (required)
-#   PPP_BAMBU_SLICER  the BambuStudio command    (default: bambu-studio)
-#   PPP_DOWNLOAD_DIR  where fetched models land  (default: ~/.cache/ppp/models,
+#   BYD_BASE          the instance, e.g. https://print.example         (required)
+#   BYD_BAMBU_SLICER  the BambuStudio command    (default: bambu-studio)
+#   BYD_DOWNLOAD_DIR  where fetched models land  (default: ~/.cache/byd/models,
 #                                                  shared with the Prusa bridge)
 #
 # The clicked link carries its own credential, exactly like the Prusa one:
-# `ppp-bambu://slice/<id>?t=<token>`, minted for the person looking at that
+# `byd-bambu://slice/<id>?t=<token>`, minted for the person looking at that
 # ticket, good for half an hour and for that model only. Nothing secret is
 # ever written to disk.
 
 set -euo pipefail
 
-CONF="${PPP_SLICER_CONF:-$HOME/.config/ppp/slicer.conf}"
-LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ppp"
+CONF="${BYD_SLICER_CONF:-$HOME/.config/byd/slicer.conf}"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/byd"
 LOG="$LOG_DIR/slicer.log"
 mkdir -p "$LOG_DIR"
 
@@ -56,15 +56,15 @@ fail() {
 # shellcheck disable=SC1090
 . "$CONF"
 
-: "${PPP_BASE:?PPP_BASE is not set in $CONF}"
-DOWNLOAD_DIR="${PPP_DOWNLOAD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ppp/models}"
+: "${BYD_BASE:?BYD_BASE is not set in $CONF}"
+DOWNLOAD_DIR="${BYD_DOWNLOAD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/byd/models}"
 
 # --- locate BambuStudio ------------------------------------------------------
 # Same shape as the Prusa bridge's slicer search: a bare name, a full path
 # (AppImage), or a multi-word command ("flatpak run …"), probed in that order
-# when PPP_BAMBU_SLICER is unset.
-if [ -n "${PPP_BAMBU_SLICER:-}" ]; then
-  read -r -a SLICER_CMD <<<"$PPP_BAMBU_SLICER"
+# when BYD_BAMBU_SLICER is unset.
+if [ -n "${BYD_BAMBU_SLICER:-}" ]; then
+  read -r -a SLICER_CMD <<<"$BYD_BAMBU_SLICER"
 else
   SLICER_CMD=()
   for cand in bambu-studio bambustudio BambuStudio bambu-studio-gui; do
@@ -86,17 +86,17 @@ else
 fi
 
 [ "${#SLICER_CMD[@]}" -gt 0 ] || fail \
-  "could not find BambuStudio. Set PPP_BAMBU_SLICER in $CONF — a binary name, the full path to an AppImage, or 'flatpak run com.bambulab.BambuStudio'."
+  "could not find BambuStudio. Set BYD_BAMBU_SLICER in $CONF — a binary name, the full path to an AppImage, or 'flatpak run com.bambulab.BambuStudio'."
 
 # --- parse the link -----------------------------------------------------------
 url="${1:-}"
-[ -n "$url" ] || fail "no URL given — this is invoked by clicking a ppp-bambu:// link"
+[ -n "$url" ] || fail "no URL given — this is invoked by clicking a byd-bambu:// link"
 
-rest="${url#ppp-bambu://slice/}"
+rest="${url#byd-bambu://slice/}"
 id="${rest%%\?*}"
 id="${id%/}"
 case "$id" in
-  "" | *[!0-9]*) fail "not a model link: $url (expected ppp-bambu://slice/<number>)" ;;
+  "" | *[!0-9]*) fail "not a model link: $url (expected byd-bambu://slice/<number>)" ;;
 esac
 
 link_token=""
@@ -117,7 +117,7 @@ esac
 command -v curl >/dev/null 2>&1 || fail "curl is not installed"
 slicer_head="${SLICER_CMD[0]}"
 command -v "$slicer_head" >/dev/null 2>&1 || [ -x "$slicer_head" ] ||
-  fail "slicer '$slicer_head' is not runnable — fix PPP_BAMBU_SLICER in $CONF (a name on PATH, an AppImage path, or 'flatpak run com.bambulab.BambuStudio')"
+  fail "slicer '$slicer_head' is not runnable — fix BYD_BAMBU_SLICER in $CONF (a name on PATH, an AppImage path, or 'flatpak run com.bambulab.BambuStudio')"
 
 # --- fetch --------------------------------------------------------------------
 tmp="$(mktemp -d)"
@@ -125,12 +125,12 @@ trap 'rm -rf "$tmp"' EXIT
 hdr="$tmp/headers"
 body="$tmp/body"
 
-note "fetching story $id from $PPP_BASE (bambu)"
+note "fetching story $id from $BYD_BASE (bambu)"
 code="$(
   curl -sS -o "$body" -D "$hdr" -w '%{http_code}' \
     --get --data-urlencode "t=$link_token" \
-    "$PPP_BASE/api/models/$id" 2>"$tmp/err"
-)" || fail "could not reach $PPP_BASE: $(tr -d '\r' <"$tmp/err" | tail -n1)"
+    "$BYD_BASE/api/models/$id" 2>"$tmp/err"
+)" || fail "could not reach $BYD_BASE: $(tr -d '\r' <"$tmp/err" | tail -n1)"
 
 case "$code" in
   200) : ;;
@@ -150,7 +150,7 @@ case "$name" in "" | .*) name="model-$id.stl" ;; esac
 mkdir -p "$DOWNLOAD_DIR"
 find "$DOWNLOAD_DIR" -maxdepth 1 -type f -mtime +1 -delete 2>/dev/null || true
 
-out="$DOWNLOAD_DIR/PPP-$((100 + id))-$name"
+out="$DOWNLOAD_DIR/BYD-$((100 + id))-$name"
 mv "$body" "$out"
 note "saved $out"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Register prusa-open.sh and bambu-open.sh as the handlers for `ppp://` and
-# `ppp-bambu://` links on this Linux desktop, and lay down a shared config
+# Register prusa-open.sh and bambu-open.sh as the handlers for `byd://` and
+# `byd-bambu://` links on this Linux desktop, and lay down a shared config
 # skeleton for both to read.
 #
 # Run it once, on the machine that has the printer and your slicer:
@@ -13,10 +13,10 @@
 #      .desktop entry for each into ~/.local/share/applications, pointing at
 #      *those copies*;
 #   2. makes each the default handler for its own x-scheme-handler MIME type
-#      (ppp for PrusaSlicer, ppp-bambu for BambuStudio);
-#   3. creates ~/.config/ppp/slicer.conf (mode 600) for you to fill in, if it
+#      (byd for PrusaSlicer, byd-bambu for BambuStudio);
+#   3. creates ~/.config/byd/slicer.conf (mode 600) for you to fill in, if it
 #      is not already there — one shared file, since both bridges belong to
-#      the same app instance and need the same PPP_BASE.
+#      the same app instance and need the same BYD_BASE.
 #
 # Neither slicer has to actually be installed for this to run cleanly: only
 # clicking the corresponding button in the app ever invokes the handler, and
@@ -24,7 +24,7 @@
 #
 # macOS and Windows register a scheme differently (a .app/Info.plist and a
 # registry key respectively) — docs/prusaslicer.md has both for PrusaSlicer;
-# the same shapes apply to BambuStudio with ppp-bambu in place of ppp. This
+# the same shapes apply to BambuStudio with byd-bambu in place of byd. This
 # installer is Linux/XDG only, and says so rather than pretending to work
 # elsewhere.
 
@@ -72,7 +72,7 @@ install_handler() {
   cat >"$desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Pretty Please Print → $display_name
+Name=BYD Printing → $display_name
 Comment=Open a $scheme:// model link in $display_name
 Exec=$handler %u
 Terminal=false
@@ -102,15 +102,15 @@ DESKTOP
   fi
 }
 
-install_handler ppp        prusa-open.sh ppp-slicer       PrusaSlicer
-install_handler ppp-bambu  bambu-open.sh ppp-bambu-slicer BambuStudio
+install_handler byd        prusa-open.sh byd-slicer       PrusaSlicer
+install_handler byd-bambu  bambu-open.sh byd-bambu-slicer BambuStudio
 
 command -v update-desktop-database >/dev/null 2>&1 &&
   update-desktop-database "$apps_dir" 2>/dev/null || true
 
 # Config skeleton — never overwrite an existing one. Still created 600: it holds
 # no credential any more, but an existing file might, and tightening is free.
-conf_dir="${XDG_CONFIG_HOME:-$HOME/.config}/ppp"
+conf_dir="${XDG_CONFIG_HOME:-$HOME/.config}/byd"
 conf="$conf_dir/slicer.conf"
 mkdir -p "$conf_dir"
 if [ -f "$conf" ]; then
@@ -118,9 +118,9 @@ if [ -f "$conf" ]; then
 else
   umask 077
   cat >"$conf" <<'CONF'
-# Pretty Please Print slicer bridge config. Shared by prusa-open.sh and
+# BYD Printing slicer bridge config. Shared by prusa-open.sh and
 # bambu-open.sh — one file, since both belong to the same app instance and
-# need the same PPP_BASE.
+# need the same BYD_BASE.
 #
 # There is nothing secret in here. The clicked link carries its own credential
 # — minted by the app for whoever was looking at that ticket, good for half an
@@ -128,45 +128,45 @@ else
 # instance to talk to.
 
 # The instance, no trailing slash. This is the only required setting.
-PPP_BASE="https://print.example"
+BYD_BASE="https://print.example"
 
 # Optional. Left unset, the PrusaSlicer bridge finds it on its own — a binary
 # on PATH (prusa-slicer / prusaslicer / PrusaSlicer), a Flatpak install, or an
 # AppImage in ~/Applications, ~/Downloads or ~/.local/bin. Set it only to point
 # somewhere else, in any of these forms:
-#   PPP_SLICER="prusa-slicer"                              # a binary name
-#   PPP_SLICER="$HOME/Applications/PrusaSlicer-2.9.0.AppImage"   # an AppImage
-#   PPP_SLICER="flatpak run com.prusa3d.PrusaSlicer"      # a Flatpak
-#   PPP_SLICER="orca-slicer"                              # any slicer works
+#   BYD_SLICER="prusa-slicer"                              # a binary name
+#   BYD_SLICER="$HOME/Applications/PrusaSlicer-2.9.0.AppImage"   # an AppImage
+#   BYD_SLICER="flatpak run com.prusa3d.PrusaSlicer"      # a Flatpak
+#   BYD_SLICER="orca-slicer"                              # any slicer works
 # (A path containing spaces is the one form this cannot express.)
 
 # Optional. Same idea, for the BambuStudio bridge — a binary on PATH
 # (bambu-studio / bambustudio / BambuStudio), a Flatpak install, or an
 # AppImage in the same places as above.
-#   PPP_BAMBU_SLICER="bambu-studio"                                  # a binary name
-#   PPP_BAMBU_SLICER="$HOME/Applications/BambuStudio.AppImage"       # an AppImage
-#   PPP_BAMBU_SLICER="flatpak run com.bambulab.BambuStudio"          # a Flatpak
+#   BYD_BAMBU_SLICER="bambu-studio"                                  # a binary name
+#   BYD_BAMBU_SLICER="$HOME/Applications/BambuStudio.AppImage"       # an AppImage
+#   BYD_BAMBU_SLICER="flatpak run com.bambulab.BambuStudio"          # a Flatpak
 
 # Optional. Where fetched models are cached (pruned after a day). Shared by
 # both bridges.
-# PPP_DOWNLOAD_DIR="$HOME/.cache/ppp/models"
+# BYD_DOWNLOAD_DIR="$HOME/.cache/byd/models"
 CONF
   chmod 600 "$conf"
-  echo "created $conf — set PPP_BASE to your instance"
+  echo "created $conf — set BYD_BASE to your instance"
 fi
 
 echo
-echo "Done. Set PPP_BASE in $conf, then click 'Open in PrusaSlicer' or"
+echo "Done. Set BYD_BASE in $conf, then click 'Open in PrusaSlicer' or"
 echo "'Open in BambuStudio' on any ticket. No token to paste — the link"
 echo "carries its own."
 echo
 echo "Both helpers are copies under $bin_dir, so the buttons do not care"
 echo "which branch this checkout is on. After a git pull, re-run this"
 echo "installer to update them."
-if [ -f "$conf" ] && grep -q '^[[:space:]]*PPP_TOKEN=' "$conf" 2>/dev/null; then
+if [ -f "$conf" ] && grep -q '^[[:space:]]*BYD_TOKEN=' "$conf" 2>/dev/null; then
   echo
-  echo "NOTE: $conf still sets PPP_TOKEN. That was the old way in and it is a"
+  echo "NOTE: $conf still sets BYD_TOKEN. That was the old way in and it is a"
   echo "      long-lived credential on disk; links carry their own now. You can"
   echo "      delete the line."
 fi
-echo "Trouble? tail -f \"\${XDG_STATE_HOME:-\$HOME/.local/state}/ppp/slicer.log\""
+echo "Trouble? tail -f \"\${XDG_STATE_HOME:-\$HOME/.local/state}/byd/slicer.log\""
