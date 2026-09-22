@@ -75,7 +75,7 @@ export async function AppHeader({
             account cluster is pushed right with `ml-auto` rather than a
             flex-1 spacer, which was what scattered the wrapped layout. */}
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-x-[16px] gap-y-[11px] px-[16px] py-[11px] sm:px-[26.4px] sm:py-[13.2px] lg:gap-x-[22px]">
-          <Link href={user.role === "admin" ? "/queue" : "/board"} aria-label="Pretty Please Print, home">
+          <Link href={user.role === "admin" ? "/queue" : "/board"} aria-label="BYD Printing, home">
             {/* On the dark bar the script reads cream, not cherry. */}
             <span className="[&_span]:text-cream">
               <Brand size={34} />

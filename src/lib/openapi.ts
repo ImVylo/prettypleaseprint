@@ -264,7 +264,7 @@ export async function buildOpenApiDocument() {
   return {
     openapi: "3.1.0",
     info: {
-      title: "Pretty Please Print",
+      title: "BYD Printing",
       version: process.env.PPP_TAG ?? "0.1.0",
       description:
         "The HTTP surface of one office's 3D-print queue.\n\n" +

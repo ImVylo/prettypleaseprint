@@ -44,7 +44,7 @@ const courier = Courier_Prime({
 });
 
 export const metadata: Metadata = {
-  title: "Pretty Please Print",
+  title: "BYD Printing",
   description: "Invite-only 3D print requests for the office.",
   robots: { index: false, follow: false },
 };

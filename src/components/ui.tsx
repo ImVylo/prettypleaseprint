@@ -26,7 +26,7 @@ export function Brand({ size = 34, lit = false }: { size?: number; lit?: boolean
         className={`font-script leading-none text-cherry-dk ${lit ? "ppp-neon" : ""}`}
         style={{ fontSize: size * 0.62 }}
       >
-        pretty please print
+        byd printing
       </span>
     </span>
   );
