@@ -1,0 +1,107 @@
+# Dokploy-specific compose file.
+#
+# Dokploy's own reverse proxy (Traefik) reaches a compose service over the
+# stack's internal network using `expose`, not a published host port — same
+# convention docker-compose.prod.yml already uses, so only three things
+# differ from it:
+#
+#   1. One file instead of prod.yml + build.yml layered together — Dokploy's
+#      compose.update takes a single composeFile/composePath, no `-f` chain.
+#   2. `build:` instead of a registry image, so Dokploy builds straight from
+#      this git checkout on every push (autoDeploy is on by default).
+#   3. `expose: [3000]` on the app service, so Dokploy's Traefik can route
+#      `print.cody.onl` to it — see domain.create's `serviceName: app`.
+#
+# Everything else — no host ports on db/minio, env_file-free (Dokploy injects
+# its own `env` block as the container environment directly), migrate-before-
+# app via `service_completed_successfully` — mirrors docker-compose.prod.yml
+# on purpose so this does not drift into being a second thing to maintain.
+services:
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://ppp:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/ppp?schema=public
+      BETTER_AUTH_URL: ${APP_URL:-https://print.cody.onl}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ppp:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/ppp?schema=public
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-ppp-models}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-ppp}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      BETTER_AUTH_URL: ${APP_URL:-https://print.cody.onl}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      PASSKEY_RP_ID: ${PASSKEY_RP_ID:-print.cody.onl}
+      PASSKEY_RP_NAME: ${PASSKEY_RP_NAME:-Pretty Please Print}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME}
+      MAIL_FROM: ${MAIL_FROM:-Pretty Please Print <printer@cody.onl>}
+      SMTP_URL: ${SMTP_URL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      HIBP_DISABLED: ${HIBP_DISABLED:-false}
+      # Dokploy's Traefik replaces X-Forwarded-For, same as Nginx Proxy
+      # Manager alone — see docs/deployment.md's TRUST_PROXY_HEADERS table.
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+    expose:
+      - 3000
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ppp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: ppp
+    volumes:
+      - ppp_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ppp -d ppp"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-ppp}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+    volumes:
+      - ppp_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ppp_db_data:
+  ppp_minio_data:
