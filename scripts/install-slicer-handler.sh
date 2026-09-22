@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
 #
-# Register prusa-open.sh as the handler for `ppp://` links on this Linux
-# desktop, and lay down a config skeleton for it to read.
+# Register prusa-open.sh and bambu-open.sh as the handlers for `ppp://` and
+# `ppp-bambu://` links on this Linux desktop, and lay down a shared config
+# skeleton for both to read.
 #
-# Run it once, on the machine that has the printer and PrusaSlicer:
+# Run it once, on the machine that has the printer and your slicer:
 #   ./scripts/install-slicer-handler.sh
 #
 # What it does, all under your own home directory — nothing system-wide, no
 # sudo:
-#   1. copies prusa-open.sh to ~/.local/bin/ppp-open, and writes a .desktop
-#      entry into ~/.local/share/applications pointing at *that copy*;
-#   2. makes it the default handler for the x-scheme-handler/ppp MIME type;
+#   1. copies prusa-open.sh and bambu-open.sh to ~/.local/bin/, and writes a
+#      .desktop entry for each into ~/.local/share/applications, pointing at
+#      *those copies*;
+#   2. makes each the default handler for its own x-scheme-handler MIME type
+#      (ppp for PrusaSlicer, ppp-bambu for BambuStudio);
 #   3. creates ~/.config/ppp/slicer.conf (mode 600) for you to fill in, if it
-#      is not already there.
+#      is not already there — one shared file, since both bridges belong to
+#      the same app instance and need the same PPP_BASE.
+#
+# Neither slicer has to actually be installed for this to run cleanly: only
+# clicking the corresponding button in the app ever invokes the handler, and
+# a missing slicer fails loudly there, not here.
 #
 # macOS and Windows register a scheme differently (a .app/Info.plist and a
-# registry key respectively) — docs/prusaslicer.md has both. This installer is
-# Linux/XDG only, and says so rather than pretending to work elsewhere.
+# registry key respectively) — docs/prusaslicer.md has both for PrusaSlicer;
+# the same shapes apply to BambuStudio with ppp-bambu in place of ppp. This
+# installer is Linux/XDG only, and says so rather than pretending to work
+# elsewhere.
 
 set -euo pipefail
 
@@ -27,12 +37,15 @@ case "$(uname -s)" in
 esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
-source_handler="$here/prusa-open.sh"
-[ -f "$source_handler" ] || { echo "prusa-open.sh is not beside this installer ($source_handler)" >&2; exit 1; }
 
-# Install a COPY, and point the .desktop at that rather than at the checkout.
+bin_dir="$HOME/.local/bin"
+apps_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+mkdir -p "$bin_dir" "$apps_dir"
+
+# Install a COPY of each handler, and point its .desktop at that rather than
+# at the checkout.
 #
-# The entry used to name this script where it sits in the working tree, which
+# The entry used to name the script where it sits in the working tree, which
 # quietly made the button depend on which branch happened to be checked out:
 # switch to anything cut before the handler landed and the file is gone, the
 # click does nothing, and nothing anywhere says why. That is not hypothetical —
@@ -40,51 +53,57 @@ source_handler="$here/prusa-open.sh"
 # version than the deployed app expected.
 #
 # A copy costs one `cp` and severs the dependency entirely. It is overwritten on
-# every run, so re-running after a `git pull` is how you update the helper — and
-# the closing message says so.
-bin_dir="$HOME/.local/bin"
-handler="$bin_dir/ppp-open"
-mkdir -p "$bin_dir"
-cp "$source_handler" "$handler"
-chmod +x "$handler"
-echo "installed $handler"
+# every run, so re-running after a `git pull` is how you update the helpers —
+# and the closing message says so.
+#
+# One iteration per slicer: scheme, source script, install name, display name.
+install_handler() {
+  local scheme="$1" source_name="$2" install_name="$3" display_name="$4"
+  local source_handler="$here/$source_name"
+  [ -f "$source_handler" ] || { echo "$source_name is not beside this installer ($source_handler)" >&2; exit 1; }
 
-apps_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-desktop="$apps_dir/ppp-slicer.desktop"
-mkdir -p "$apps_dir"
+  local handler="$bin_dir/$install_name"
+  cp "$source_handler" "$handler"
+  chmod +x "$handler"
+  echo "installed $handler"
 
-# %u is the clicked URL, passed through to the handler as its one argument.
-cat >"$desktop" <<DESKTOP
+  local desktop="$apps_dir/$install_name.desktop"
+  # %u is the clicked URL, passed through to the handler as its one argument.
+  cat >"$desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Pretty Please Print → PrusaSlicer
-Comment=Open a ppp:// model link in PrusaSlicer
+Name=Pretty Please Print → $display_name
+Comment=Open a $scheme:// model link in $display_name
 Exec=$handler %u
 Terminal=false
 NoDisplay=true
-MimeType=x-scheme-handler/ppp;
+MimeType=x-scheme-handler/$scheme;
 DESKTOP
+  echo "wrote $desktop"
 
-echo "wrote $desktop"
-
-# Make it the default for the scheme. xdg-mime is the portable way; if it is
-# absent, fall back to editing mimeapps.list directly so this still works on a
-# minimal install.
-if command -v xdg-mime >/dev/null 2>&1; then
-  xdg-mime default ppp-slicer.desktop x-scheme-handler/ppp
-  echo "registered ppp:// via xdg-mime"
-else
-  mimeapps="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
-  touch "$mimeapps"
-  if ! grep -q '^x-scheme-handler/ppp=' "$mimeapps" 2>/dev/null; then
-    grep -q '^\[Default Applications\]' "$mimeapps" 2>/dev/null || printf '[Default Applications]\n' >>"$mimeapps"
-    # Insert the mapping under the Default Applications header.
-    tmp="$(mktemp)"
-    awk '/^\[Default Applications\]/ { print; print "x-scheme-handler/ppp=ppp-slicer.desktop"; next } { print }' \
-      "$mimeapps" >"$tmp" && mv "$tmp" "$mimeapps"
+  # Make it the default for the scheme. xdg-mime is the portable way; if it is
+  # absent, fall back to editing mimeapps.list directly so this still works on
+  # a minimal install.
+  if command -v xdg-mime >/dev/null 2>&1; then
+    xdg-mime default "$install_name.desktop" "x-scheme-handler/$scheme"
+    echo "registered $scheme:// via xdg-mime"
+  else
+    local mimeapps="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+    touch "$mimeapps"
+    if ! grep -q "^x-scheme-handler/$scheme=" "$mimeapps" 2>/dev/null; then
+      grep -q '^\[Default Applications\]' "$mimeapps" 2>/dev/null || printf '[Default Applications]\n' >>"$mimeapps"
+      local tmp
+      tmp="$(mktemp)"
+      awk -v line="x-scheme-handler/$scheme=$install_name.desktop" \
+        '/^\[Default Applications\]/ { print; print line; next } { print }' \
+        "$mimeapps" >"$tmp" && mv "$tmp" "$mimeapps"
+    fi
+    echo "registered $scheme:// in $mimeapps (xdg-mime not found)"
   fi
-  echo "registered ppp:// in $mimeapps (xdg-mime not found)"
-fi
+}
+
+install_handler ppp        prusa-open.sh ppp-slicer       PrusaSlicer
+install_handler ppp-bambu  bambu-open.sh ppp-bambu-slicer BambuStudio
 
 command -v update-desktop-database >/dev/null 2>&1 &&
   update-desktop-database "$apps_dir" 2>/dev/null || true
@@ -99,7 +118,9 @@ if [ -f "$conf" ]; then
 else
   umask 077
   cat >"$conf" <<'CONF'
-# Pretty Please Print → PrusaSlicer bridge config. Read by prusa-open.sh.
+# Pretty Please Print slicer bridge config. Shared by prusa-open.sh and
+# bambu-open.sh — one file, since both belong to the same app instance and
+# need the same PPP_BASE.
 #
 # There is nothing secret in here. The clicked link carries its own credential
 # — minted by the app for whoever was looking at that ticket, good for half an
@@ -109,8 +130,8 @@ else
 # The instance, no trailing slash. This is the only required setting.
 PPP_BASE="https://print.example"
 
-# Optional. Left unset, the helper finds PrusaSlicer on its own — a binary on
-# PATH (prusa-slicer / prusaslicer / PrusaSlicer), a Flatpak install, or an
+# Optional. Left unset, the PrusaSlicer bridge finds it on its own — a binary
+# on PATH (prusa-slicer / prusaslicer / PrusaSlicer), a Flatpak install, or an
 # AppImage in ~/Applications, ~/Downloads or ~/.local/bin. Set it only to point
 # somewhere else, in any of these forms:
 #   PPP_SLICER="prusa-slicer"                              # a binary name
@@ -119,7 +140,15 @@ PPP_BASE="https://print.example"
 #   PPP_SLICER="orca-slicer"                              # any slicer works
 # (A path containing spaces is the one form this cannot express.)
 
-# Optional. Where fetched models are cached (pruned after a day).
+# Optional. Same idea, for the BambuStudio bridge — a binary on PATH
+# (bambu-studio / bambustudio / BambuStudio), a Flatpak install, or an
+# AppImage in the same places as above.
+#   PPP_BAMBU_SLICER="bambu-studio"                                  # a binary name
+#   PPP_BAMBU_SLICER="$HOME/Applications/BambuStudio.AppImage"       # an AppImage
+#   PPP_BAMBU_SLICER="flatpak run com.bambulab.BambuStudio"          # a Flatpak
+
+# Optional. Where fetched models are cached (pruned after a day). Shared by
+# both bridges.
 # PPP_DOWNLOAD_DIR="$HOME/.cache/ppp/models"
 CONF
   chmod 600 "$conf"
@@ -127,12 +156,13 @@ CONF
 fi
 
 echo
-echo "Done. Set PPP_BASE in $conf, then click 'Open in PrusaSlicer' on any"
-echo "ticket. No token to paste — the link carries its own."
+echo "Done. Set PPP_BASE in $conf, then click 'Open in PrusaSlicer' or"
+echo "'Open in BambuStudio' on any ticket. No token to paste — the link"
+echo "carries its own."
 echo
-echo "The helper is a copy at $handler, so the button does not care which"
-echo "branch this checkout is on. After a git pull, re-run this installer to"
-echo "update it."
+echo "Both helpers are copies under $bin_dir, so the buttons do not care"
+echo "which branch this checkout is on. After a git pull, re-run this"
+echo "installer to update them."
 if [ -f "$conf" ] && grep -q '^[[:space:]]*PPP_TOKEN=' "$conf" 2>/dev/null; then
   echo
   echo "NOTE: $conf still sets PPP_TOKEN. That was the old way in and it is a"

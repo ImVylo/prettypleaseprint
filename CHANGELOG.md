@@ -7,6 +7,15 @@ Notable changes. Every entry names a released version; deployments pin
 
 ### Added
 
+- **Open in BambuStudio.** Same trick as "Open in PrusaSlicer", one scheme
+  over: BambuStudio's own `bambustudioopen://` handler only trusts
+  makerworld.com with no way to add a host, so `scripts/bambu-open.sh`
+  fetches the model itself and hands BambuStudio a local file, the same way
+  `prusa-open.sh` already does for PrusaSlicer. One installer
+  (`install-slicer-handler.sh`) now sets up both bridges and shares one
+  config file — no new server-side surface, since the existing per-model
+  link token already works for any slicer.
+
 - **Model source link.** An optional URL on upload — MakerWorld, Printables,
   Thingiverse, Thangs — shown on the ticket as a plain reference link.
   Nothing is fetched from it: neither Bambu Lab nor MakerWorld publishes a

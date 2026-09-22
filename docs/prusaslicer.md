@@ -1,10 +1,11 @@
-# Open in PrusaSlicer
+# Open in PrusaSlicer / BambuStudio
 
 [← back to the README](../README.md)
 
-Every ticket has an **Open in PrusaSlicer** control. Clicking it fetches the
-model and opens it in PrusaSlicer on the machine you clicked from. This page is
-how to set that up once, and why it works the way it does.
+Every ticket has **Open in PrusaSlicer** and **Open in BambuStudio** controls.
+Clicking either fetches the model and opens it in that slicer on the machine
+you clicked from. This page is how to set both up once, and why they work the
+way they do. One installer handles both — see *Setup* below.
 
 ## Why it is not a one-line deep link
 
@@ -18,18 +19,22 @@ have been two lines to emit. It does not work here, and cannot be made to:
 > [#14313](https://github.com/prusa3d/PrusaSlicer/issues/14313)); Prusa adds
 > domains one at a time after a security review, on request.
 
-A self-hosted instance on your own hostname can never be on that list. And the
-allowlist is checked against the **URL string** PrusaSlicer is handed, before
-it makes any request — so there is no header on any request to us that could
-be set to look like Printables. (Trying to disguise the URL to slip past the
-check is a parser-confusion trick: brittle, it breaks the next time Prusa
-tightens the check, and it re-opens for you the exact hole the allowlist
-exists to close.)
+BambuStudio has the same shape of problem with its own `bambustudioopen://`
+scheme: it only downloads from `makerworld.com`, with no way to add a host
+([bambulab/BambuStudio#6120](https://github.com/bambulab/BambuStudio/issues/6120)).
+
+A self-hosted instance on your own hostname can never be on either list. And
+the allowlists are checked against the **URL string** the slicer is handed,
+before it makes any request — so there is no header on any request to us that
+could be set to look like Printables or MakerWorld. (Trying to disguise the
+URL to slip past the check is a parser-confusion trick: brittle, it breaks the
+next time the check tightens, and it re-opens for you the exact hole the
+allowlist exists to close.)
 
 So the model is fetched by **a small helper on your own machine**, which hands
-PrusaSlicer a **local file**. A local file has no domain to check, so the
-allowlist never applies — that is the design, not a loophole. The helper is the
-only new moving part, and it talks to nothing but this app's own API.
+the slicer a **local file**. A local file has no domain to check, so the
+allowlist never applies — that is the design, not a loophole. The helper is
+the only new moving part, and it talks to nothing but this app's own API.
 
 ```
  Browser                 Helper on your machine            This app
@@ -41,31 +46,45 @@ only new moving part, and it talks to nothing but this app's own API.
                             prusa-slicer --single-instance <that file>
 ```
 
+BambuStudio's bridge (`bambu-open.sh`) is the same shape, one scheme over:
+`ppp-bambu://slice/104?t=…` in place of `ppp://slice/104?t=…`, and it launches
+BambuStudio plainly with the file as its argument — it has no documented
+`--single-instance` flag the way PrusaSlicer does.
+
 ## Setup (Linux)
 
-On the machine with the printer, PrusaSlicer and your browser, from a checkout
-of this repo:
+On the machine with the printer, your slicer(s) and your browser, from a
+checkout of this repo:
 
 ```bash
 ./scripts/install-slicer-handler.sh
 ```
 
-That copies [`scripts/prusa-open.sh`](../scripts/prusa-open.sh) to
-`~/.local/bin/ppp-open`, registers `ppp://` links to open with **that copy**,
-and creates `~/.config/ppp/slicer.conf` for you to fill in:
+That installs **both** bridges in one pass:
+
+- copies [`scripts/prusa-open.sh`](../scripts/prusa-open.sh) to
+  `~/.local/bin/ppp-slicer`, registered for `ppp://` links;
+- copies [`scripts/bambu-open.sh`](../scripts/bambu-open.sh) to
+  `~/.local/bin/ppp-bambu-slicer`, registered for `ppp-bambu://` links;
+- creates one shared `~/.config/ppp/slicer.conf` for you to fill in:
 
 ```sh
 PPP_BASE="https://print.example"      # your instance, no trailing slash
-# PPP_SLICER=…                         # only if auto-detect misses — see below
+# PPP_SLICER=…                         # only if PrusaSlicer auto-detect misses — see below
+# PPP_BAMBU_SLICER=…                   # only if BambuStudio auto-detect misses — see below
 # PPP_DOWNLOAD_DIR="$HOME/.cache/ppp/models"
 ```
 
+Neither slicer has to actually be installed for the script to run cleanly —
+only clicking the matching button in the app ever invokes a handler, and a
+missing slicer fails loudly there, with a notification, not silently here.
+
 That is the whole config: **there is no token to paste.** The clicked link
-carries its own credential.
+carries its own credential, for either slicer.
 
 ### Why a copy, and what to do after a `git pull`
 
-The handler is installed as a **copy** at `~/.local/bin/ppp-open`, and the
+Each handler is installed as a **copy** under `~/.local/bin/`, and its
 `.desktop` entry points there rather than into this checkout.
 
 It used to point at `scripts/prusa-open.sh` where it sits in the working tree,
