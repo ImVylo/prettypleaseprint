@@ -17,6 +17,18 @@ Notable changes. Every entry names a released version; deployments pin
   on the live deployment would mean migrating real data for a change nobody
   sees, so it stays for a future fresh deploy instead.
 
+### Fixed
+
+- **Login redirect loop ("too many redirects").** The PPP→BYD rename changed
+  the Better Auth cookie prefix to `byd` in `src/lib/auth.ts`, but three other
+  places still hardcoded the old `ppp` name — `SESSION_COOKIE_NAMES` in
+  `src/lib/auth-rules.ts`, the `getSessionCookie(…, { cookiePrefix })` call in
+  `src/middleware.ts`, and the OpenAPI cookie name in `src/lib/openapi.ts`.
+  Result: login set `__Secure-byd.session_token`, middleware looked for a
+  `ppp` cookie, found none, bounced the browser to `/signin` — whose
+  `currentUser()` then saw the `byd` session and bounced back to `/` — an
+  infinite redirect. All three now agree on `byd`.
+
 ### Added
 
 - **Open in BambuStudio.** Same trick as "Open in PrusaSlicer", one scheme

@@ -268,7 +268,7 @@ export async function buildOpenApiDocument() {
   // Better Auth composes this from `advanced.cookiePrefix`, and prefixes it
   // with `__Secure-` when the cookies are Secure. Naming it correctly is what
   // lets a tool send the right one.
-  const sessionCookie = `${secure ? "__Secure-" : ""}ppp.session_token`;
+  const sessionCookie = `${secure ? "__Secure-" : ""}byd.session_token`;
 
   const authHalf = await authPaths();
 
