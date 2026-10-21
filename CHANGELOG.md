@@ -29,6 +29,15 @@ Notable changes. Every entry names a released version; deployments pin
   `currentUser()` then saw the `byd` session and bounced back to `/` — an
   infinite redirect. All three now agree on `byd`.
 
+- **MinIO image pinned to a copy in GHCR.** MinIO archived the OSS edition
+  and removed its images from Docker Hub (Sep 2026), then quay.io began
+  rejecting anonymous pulls (`unauthorized`). Deploys that re-pull
+  `quay.io/minio/minio:latest` now fail. The last working release
+  (`RELEASE.2025-09-07T16-13-09Z`, arm64) is preserved in
+  `ghcr.io/imvylo/byd-minio`, and all four compose files point at it. This is
+  a stopgap: MinIO OSS is unsupported, so a maintained S3-compatible
+  alternative should be evaluated before it becomes a liability.
+
 ### Added
 
 - **Open in BambuStudio.** Same trick as "Open in PrusaSlicer", one scheme
