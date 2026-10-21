@@ -110,7 +110,7 @@ services:
   # Model files. Never exposed to the internet — the app fetches from it
   # server-side and hands out short-lived signed URLs.
   minio:
-    image: quay.io/minio/minio:latest
+    image: ghcr.io/imvylo/byd-minio:RELEASE.2025-09-07T16-13-09Z
     container_name: ppp-minio
     <<: *restart
     command: server /data --console-address ":9001"

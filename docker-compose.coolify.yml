@@ -79,7 +79,13 @@ services:
       retries: 10
 
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO's OSS images were removed from Docker Hub (Sep 2026) and quay.io
+    # now rejects anonymous pulls ("unauthorized"). This is the last working
+    # release, preserved in the owner's GHCR registry so deploys don't depend
+    # on a registry that no longer serves it anonymously. See also the note in
+    # docs/deployment.md about evaluating a maintained S3-compatible
+    # alternative before MinIO's OSS line becomes unsupported.
+    image: ghcr.io/imvylo/byd-minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
