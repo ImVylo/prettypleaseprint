@@ -6,6 +6,7 @@ import { RemoveMaterialButton } from "./remove-material-button";
 import { RemoveColorButton } from "./remove-color-button";
 import { AddColorForm } from "./add-color-form";
 import { EditMaterialInline } from "./edit-material-inline";
+import { MaterialRateForm } from "./material-rate-form";
 import { EditColorInline } from "./edit-color-inline";
 import {
   addMaterialAction,
@@ -52,14 +53,16 @@ export default async function CatalogPage({
 }: {
   searchParams: Promise<{ toast?: string; error?: string }>;
 }) {
-  const [admin, params, materials] = await Promise.all([
+  const [admin, params, materials, rates] = await Promise.all([
     requireAdmin(),
     searchParams,
     db.catalogMaterial.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: { colors: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] } },
     }),
+    db.materialRate.findMany(),
   ]);
+  const rateByName = new Map(rates.map((r) => [r.material, r.dollarsPerKg]));
 
   return (
     <>
@@ -108,6 +111,12 @@ export default async function CatalogPage({
                 </form>
                 <RemoveMaterialButton id={material.id} name={material.name} />
               </div>
+
+              <MaterialRateForm
+                materialId={material.id}
+                materialName={material.name}
+                dollarsPerKg={rateByName.get(material.name) ?? 0}
+              />
 
               <div className="space-y-[8.8px]">
                 {material.colors.map((color, colorIndex) => (

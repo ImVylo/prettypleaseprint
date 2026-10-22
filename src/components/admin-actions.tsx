@@ -1,4 +1,4 @@
-import { advanceStory, clearFlag, declineStory, flagStory } from "@/app/actions/stories";
+import { advanceStory, changeStoryRequester, clearFlag, declineStory, flagStory } from "@/app/actions/stories";
 import { nextStatus } from "@/lib/scope";
 import type { StoryStatus } from "@prisma/client";
 
@@ -17,6 +17,7 @@ export function AdminActions({
   flagged,
   flagReason,
   from,
+  requesters,
   compact = false,
 }: {
   storyId: number;
@@ -25,6 +26,8 @@ export function AdminActions({
   flagReason?: string | null;
   /** Where to return with the result. Validated server-side. */
   from: string;
+  /** Everyone the owner may hand this ticket to. */
+  requesters: { id: string; name: string }[];
   compact?: boolean;
 }) {
   const next = nextStatus(status);
@@ -99,6 +102,44 @@ export function AdminActions({
             </button>
           </form>
         )}
+
+        {/* Reassign who asked for it — changes an attribution, so it asks for a pick, not a click. */}
+        <details>
+          <summary className="inline-block cursor-pointer list-none rounded-chip border-[3px] border-transparent px-[15px] py-[8px] text-[14px] font-bold text-ink-2 hover:border-ink hover:bg-aqua-wash">
+            Reassign
+          </summary>
+          <form
+            action={changeStoryRequester}
+            className="mt-[8px] flex flex-wrap items-center gap-[8px] rounded-card border-[3px] border-ink bg-aqua-wash p-[11px]"
+          >
+            <input type="hidden" name="storyId" value={storyId} />
+            <label htmlFor={`requester-${storyId}`} className="sr-only">
+              New requester
+            </label>
+            <select
+              id={`requester-${storyId}`}
+              name="requesterId"
+              required
+              defaultValue=""
+              className="min-w-[180px] flex-1 rounded-[8px] border-[3px] border-ink bg-porcelain px-[11px] py-[7px] text-[14px] text-ink"
+            >
+              <option value="" disabled>
+                Who asked for it?
+              </option>
+              {requesters.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="stamp cursor-pointer rounded-chip border-[3px] border-ink bg-aqua px-[15px] py-[7px] text-[13.5px] font-bold text-ink"
+            >
+              Change
+            </button>
+          </form>
+        </details>
 
         {/* Terminal, so it asks twice. */}
         {isNew && (

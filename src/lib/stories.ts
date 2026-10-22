@@ -833,6 +833,57 @@ export async function changeStoryPriority(actor: Actor, id: number, rawPriority:
   return { ...result, unchanged: false };
 }
 
+/**
+ * Change who asked for a print. Owner-only: the ticket belongs to whoever
+ * filed it, so only the printer owner hands it to someone else. Both the old
+ * and the new requester are told, and the swap is audited.
+ */
+export async function changeStoryRequester(actor: Actor, id: number, rawRequesterId: unknown) {
+  const requesterId = typeof rawRequesterId === "string" ? rawRequesterId : "";
+  const story = await loadForAdmin(actor, id);
+
+  const target = requesterId
+    ? await db.user.findUnique({ where: { id: requesterId }, select: { id: true, name: true } })
+    : null;
+  if (!target) throw problem(400, "Choose who asked for it.");
+  if (story.uploaderId === target.id) throw problem(409, `${target.name} already asked for this one.`);
+
+  const fromName = story.uploader.name;
+
+  await db.story.update({ where: { id: story.id }, data: { uploaderId: target.id } });
+
+  if (story.uploaderId !== actor.id) {
+    await notify({
+      recipientId: story.uploaderId,
+      storyId: story.id,
+      text: `${firstName(actor.name)} moved “${story.title}” to ${target.name}.`,
+    });
+  }
+  if (target.id !== actor.id) {
+    await notify({
+      recipientId: target.id,
+      storyId: story.id,
+      text: `${firstName(actor.name)} set “${story.title}” as asked by you.`,
+    });
+  }
+
+  await record({
+    action: "story.requester_changed",
+    actor,
+    subject: storyRef(story.id),
+    detail: { title: story.title, from: story.uploaderId, to: target.id, fromName, toName: target.name },
+  });
+
+  refresh(story.id);
+  return {
+    id: story.id,
+    ref: storyRef(story.id),
+    title: story.title,
+    fromName,
+    toName: target.name,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // The conversation
 // ---------------------------------------------------------------------------

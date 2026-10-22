@@ -37,7 +37,7 @@ export default async function RatesPage({
           One shared rate for electricity and wear, applied to however many
           minutes a ticket actually took. Filament pricing, per material, is
           at{" "}
-          <a href="/admin/materials" className="underline underline-offset-2">/admin/materials</a>{" "}
+          <a href="/admin/catalog" className="underline underline-offset-2">/admin/catalog</a>{" "}
           now — next to the material itself. A ticket only shows a cost once
           you record what it actually used, on the ticket page. Nothing here
           is ever guessed from a file&rsquo;s size.

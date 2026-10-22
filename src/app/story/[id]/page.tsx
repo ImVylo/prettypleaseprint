@@ -6,6 +6,7 @@ import { PRIORITY_CHIP, STORY_PRIORITIES, quantityText, relativeTime } from "@/l
 import { changeStoryPriority } from "@/app/actions/stories";
 import { formatBytes } from "@/lib/models";
 import { trustedSourceLink } from "@/lib/import-source";
+import { db } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { Fact, Notice, StatusChip } from "@/components/ui";
 import { AdminActions } from "@/components/admin-actions";
@@ -44,6 +45,12 @@ export default async function StoryPage({
   // a 403 would confirm it exists.
   const story = await getStoryOr404(storyId, user);
   const owner = await printerName();
+
+  const requesters = await db.user.findMany({
+    where: { banned: { not: true } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   const currentIndex = (FLOW as readonly string[]).indexOf(story.status);
   // Null for an upload — and for anything in the column that is not a link
@@ -360,6 +367,7 @@ export default async function StoryPage({
                   flagged={story.flagged}
                   flagReason={story.flagReason}
                   from={`/story/${story.id}`}
+                  requesters={requesters}
                 />
               </section>
             )}

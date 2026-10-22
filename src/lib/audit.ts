@@ -41,6 +41,7 @@ export type AuditAction =
   | "story.priority_changed"
   | "story.flagged"
   | "story.flag_cleared"
+  | "story.requester_changed"
   | "comment.added"
   | "file.downloaded"
   | "file.refused"

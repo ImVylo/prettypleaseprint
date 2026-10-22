@@ -11,6 +11,7 @@ import {
   declineStory as decline,
   flagStory as flag,
   changeStoryPriority as reprioritise,
+  changeStoryRequester as reassign,
   storyIdOr400,
   withdrawStory as withdraw,
 } from "@/lib/stories";
@@ -136,6 +137,18 @@ export async function changeStoryPriority(formData: FormData): Promise<void> {
     back(`/story/${id}`, {
       toast: done.unchanged ? `Already ${done.to} priority.` : `Priority → ${done.to}.`,
     });
+  } catch (error) {
+    if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
+    throw error;
+  }
+}
+
+export async function changeStoryRequester(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const id = storyIdOr400(formData.get("storyId"));
+  try {
+    const done = await reassign(admin, id, formData.get("requesterId"));
+    back(`/story/${id}`, { toast: `Asked by ${done.fromName} → ${done.toName}.` });
   } catch (error) {
     if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
     throw error;

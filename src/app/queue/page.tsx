@@ -38,6 +38,12 @@ export default async function QueuePage({
     include: { uploader: { select: { name: true, initials: true } } },
   });
 
+  const requesters = await db.user.findMany({
+    where: { banned: { not: true } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
   // High first, then oldest first within a priority — the query is already
   // oldest-first and the sort is stable. The same order the feature-request
   // queue reads in.
@@ -106,6 +112,7 @@ export default async function QueuePage({
                     flagged={story.flagged}
                     flagReason={story.flagReason}
                     from="/queue"
+                    requesters={requesters}
                     compact
                   />
                 </article>
@@ -164,6 +171,7 @@ export default async function QueuePage({
                     flagged={story.flagged}
                     flagReason={story.flagReason}
                     from="/queue"
+                    requesters={requesters}
                     compact
                   />
                 )}

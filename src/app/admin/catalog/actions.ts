@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/authz";
 import { record } from "@/lib/audit";
+import { RateProblem, setMaterialRate } from "@/lib/cost";
 import { COLOR_MODES } from "@/lib/catalog";
 
 const Name = z.string().trim().min(1).max(40).transform((value) => value.replace(/\s+/g, " "));
@@ -99,6 +100,8 @@ export async function editMaterialAction(formData: FormData): Promise<void> {
   if (!material) back("error", "That material no longer exists.");
   try {
     await db.catalogMaterial.update({ where: { id }, data: { name: parsedName.data } });
+    // Carry the $/kg rate over to the new name so a rename doesn't orphan it.
+    await db.materialRate.updateMany({ where: { material: material.name }, data: { material: parsedName.data } });
   } catch (error) {
     if (duplicate(error)) back("error", `${parsedName.data} is already in the catalog.`);
     throw error;
@@ -112,6 +115,20 @@ export async function editMaterialAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/catalog");
   revalidatePath("/upload");
   back("toast", `${material.name} renamed to ${parsedName.data}.`);
+}
+
+export async function setMaterialRateAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const materialId = String(formData.get("materialId") ?? "");
+  const material = await db.catalogMaterial.findUnique({ where: { id: materialId }, select: { name: true } });
+  if (!material) back("error", "That material no longer exists.");
+  try {
+    const { dollarsPerKg } = await setMaterialRate(admin, material.name, formData.get("dollarsPerKg"));
+    back("toast", `${material.name} filament is $${dollarsPerKg.toFixed(2)}/kg.`);
+  } catch (error) {
+    if (error instanceof RateProblem) back("error", error.message);
+    throw error;
+  }
 }
 
 export async function removeMaterialAction(formData: FormData): Promise<void> {
