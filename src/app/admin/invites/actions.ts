@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
@@ -23,20 +24,15 @@ import {
 
 export type InviteFormState = {
   error?: string;
-  /** The address that was invited. */
+  /** The address that was invited, when one was given. */
   sent?: string;
-  /**
-   * Present only when there was nowhere to mail the link, so the admin has to
-   * hand it over. Deliberately not returned when mail worked — see
-   * CreatedInvite in src/lib/invites.ts.
-   */
-  handoverUrl?: string;
+  /** The copyable link. Present on every success, whether or not mail went out. */
+  url?: string;
+  /** True when no email was given — an open link for whoever claims it. */
+  open?: boolean;
+  /** Whether it also went out by email (false for open invites / no transport). */
+  delivered?: boolean;
 };
-
-const InviteSchema = z.object({
-  email: z.email("That does not look like an email address."),
-  name: z.string().trim().max(80).optional(),
-});
 
 export async function sendInviteAction(
   _prev: InviteFormState,
@@ -48,32 +44,41 @@ export async function sendInviteAction(
   // session. Prove it is you.
   await requireFreshAuth("/admin/invites");
 
-  const parsed = InviteSchema.safeParse({
-    email: formData.get("email"),
-    name: formData.get("name") || undefined,
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Check the form." };
+  // Email is optional now: leave it blank for an open link the admin copies
+  // and hands around. The invitee supplies their address when they claim it.
+  const emailRaw = formData.get("email");
+  const email = typeof emailRaw === "string" ? emailRaw.trim() : "";
+  if (email && !z.email().safeParse(email).success) {
+    return { error: "That does not look like an email address." };
   }
 
+  const nameRaw = formData.get("name");
+  const name = typeof nameRaw === "string" && nameRaw.trim() ? nameRaw.trim() : null;
+  if (name && name.length > 80) return { error: "That name is too long." };
+
   try {
-    const { invite, handoverUrl } = await createInvite({
-      email: parsed.data.email,
-      name: parsed.data.name ?? null,
+    const { invite, url, delivered } = await createInvite({
+      email: email || null,
+      name,
       invitedById: admin.id,
     });
     await record({
       action: "invite.sent",
       actor: admin,
-      subject: invite.email,
+      subject: invite.email ?? "open invite",
       detail: {
         role: invite.role,
         expiresAt: invite.expiresAt.toISOString(),
-        delivery: handoverUrl ? "handover" : "email",
+        delivery: invite.email ? (delivered ? "email" : "handover") : "open-link",
       },
     });
     revalidatePath("/admin/invites");
-    return { sent: invite.email, handoverUrl };
+    return {
+      sent: invite.email ?? undefined,
+      url,
+      open: !invite.email,
+      delivered,
+    };
   } catch (e) {
     if (e instanceof InviteError) return { error: e.message };
     if (isUniqueViolation(e)) {
@@ -94,8 +99,17 @@ export async function resendInviteAction(formData: FormData): Promise<void> {
   await requireFreshAuth("/admin/invites");
   const id = String(formData.get("id") ?? "");
   try {
-    const { invite } = await resendInvite(id);
-    await record({ action: "invite.resent", actor: admin, subject: invite.email });
+    const { invite, url } = await resendInvite(id);
+    await record({
+      action: "invite.resent",
+      actor: admin,
+      subject: invite.email ?? "open invite",
+    });
+    // An open invite has no address to send to, so the fresh link is shown to
+    // the admin to copy instead. An email invite is re-emailed silently.
+    if (!invite.email) {
+      redirect(`/admin/invites?link=${encodeURIComponent(url)}`);
+    }
   } catch (e) {
     if (!(e instanceof InviteError)) throw e;
   }
@@ -182,7 +196,7 @@ export async function resetPasswordAction(
   revalidatePath("/admin/invites");
   // Same rule as invitations: when the link was delivered it stays inside the
   // message, so not even the admin who triggered it can replay it.
-  return delivered ? { sent: target.email } : { sent: target.email, handoverUrl: url };
+  return delivered ? { sent: target.email } : { sent: target.email, url };
 }
 
 /**

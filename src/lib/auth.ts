@@ -75,7 +75,7 @@ if (isProd && !isBuildPhase) {
 }
 
 export const auth = betterAuth({
-  appName: "Pretty Please Print",
+  appName: "BYD Printing",
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(db, { provider: "postgresql" }),
@@ -192,7 +192,7 @@ export const auth = betterAuth({
   },
 
   advanced: {
-    cookiePrefix: "ppp",
+    cookiePrefix: "byd",
     useSecureCookies: isHttps,
     defaultCookieAttributes: {
       httpOnly: true,
@@ -280,7 +280,7 @@ export const auth = betterAuth({
         return {
           error: "invite_required",
           errorDescription:
-            "Pretty Please Print is invite-only. Ask the printer owner for a link.",
+            "BYD Printing is invite-only. Ask the printer owner for a link.",
         };
       }
     },
@@ -392,7 +392,7 @@ export const auth = betterAuth({
 
     passkey({
       rpID: process.env.PASSKEY_RP_ID ?? "localhost",
-      rpName: process.env.PASSKEY_RP_NAME ?? "Pretty Please Print",
+      rpName: process.env.PASSKEY_RP_NAME ?? "BYD Printing",
       origin: baseURL,
       authenticatorSelection: {
         // Discoverable credentials let someone sign in without typing a

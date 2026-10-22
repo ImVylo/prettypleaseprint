@@ -2,7 +2,7 @@
 ALTER TABLE "story" ALTER COLUMN "material" DROP DEFAULT;
 ALTER TABLE "story" ALTER COLUMN "material" TYPE TEXT USING "material"::text;
 ALTER TABLE "story" ALTER COLUMN "material" SET DEFAULT 'PETG';
-DROP TYPE "Material";
+DROP TYPE IF EXISTS "Material";
 
 CREATE TABLE "catalogMaterial" (
     "id" TEXT NOT NULL,

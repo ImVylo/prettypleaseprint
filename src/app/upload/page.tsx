@@ -30,10 +30,8 @@ export default async function UploadPage() {
           <Kicker>New order</Kicker>
           {/* Still a sentence someone would say out loud — which was the
               point of the original H1, and survives the rename. */}
-          {/* Still a sentence someone would say out loud, which was the point
-              of the original H1 and survives both the rename and the redesign. */}
           <h1 className="m-0 mb-[13.2px] text-[46px] leading-[0.98] text-ink">
-            Pretty please print
+            BYD Printing
           </h1>
           <p className="m-0 mb-[26.4px] text-[16.5px] leading-[1.5] text-ink-2 text-pretty">
             Drop an <span className="font-mono">.stl</span> or{" "}

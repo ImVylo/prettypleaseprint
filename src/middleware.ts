@@ -128,7 +128,7 @@ export function middleware(request: NextRequest) {
   // /api/upload comes back 401.
   const isApi = pathname.startsWith("/api/");
   const isPublic = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
-  const hasCookie = getSessionCookie(request, { cookiePrefix: "ppp" });
+  const hasCookie = getSessionCookie(request, { cookiePrefix: "byd" });
 
   if (isApi || isPublic || hasCookie) {
     const res = withCsp(NextResponse.next({ request: { headers: requestHeaders } }));

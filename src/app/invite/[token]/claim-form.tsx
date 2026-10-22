@@ -44,7 +44,7 @@ export function ClaimForm({
   suggestedName,
 }: {
   token: string;
-  email: string;
+  email: string | null;
   suggestedName: string;
 }) {
   const [state, formAction] = useActionState<ClaimState, FormData>(
@@ -58,12 +58,33 @@ export function ClaimForm({
 
       <div>
         <Label htmlFor="email">Your email</Label>
-        {/* Fixed: the invite is bound to this address. Showing it disabled is
-            clearer than hiding it — people want to know which inbox they are. */}
-        <Input id="email" value={email} disabled readOnly />
-        <p className="mt-[6px] font-mono text-[11.5px] uppercase tracking-[0.04em] text-ink-3">
-          The invite is tied to this address and cannot be moved to another.
-        </p>
+        {email ? (
+          <>
+            {/* Fixed: the invite is bound to this address. Showing it disabled is
+                clearer than hiding it — people want to know which inbox they are. */}
+            <Input id="email" value={email} disabled readOnly />
+            <p className="mt-[6px] font-mono text-[11.5px] uppercase tracking-[0.04em] text-ink-3">
+              The invite is tied to this address and cannot be moved to another.
+            </p>
+          </>
+        ) : (
+          <>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="you@office.example"
+              autoComplete="email"
+              aria-describedby="email-hint"
+              aria-invalid={state.field === "email" || undefined}
+            />
+            <Hint state={state} field="email">
+              This link is not tied to an address yet — enter the one you want
+              to use.
+            </Hint>
+          </>
+        )}
       </div>
 
       <div>

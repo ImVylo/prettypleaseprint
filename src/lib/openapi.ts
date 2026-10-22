@@ -86,8 +86,8 @@ const STORY_SCHEMA = {
     id: { type: "integer", examples: [4] },
     ref: {
       type: "string",
-      description: "The display reference, `PPP-` + (100 + id). What people paste into chat.",
-      examples: ["PPP-104"],
+      description: "The display reference, `BYD-` + (100 + id). What people paste into chat.",
+      examples: ["BYD-104"],
     },
     title: { type: "string", examples: ["Cable clip"] },
     status: { type: "string", enum: [...FLOW, "Declined"] },
@@ -121,6 +121,17 @@ const STORY_SCHEMA = {
           description: "The swatch as a CSS background: a colour or a linear-gradient.",
         },
         mode: { type: "string", enum: [...COLOR_MODES] },
+      },
+    },
+    additionalColors: {
+      type: "array",
+      description: "Extra colours for a multi-colour print, beyond `color` above. Empty for a single-colour ticket.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          hex: { type: "string", examples: ["#eaecee"] },
+        },
       },
     },
     tip: { type: "string", enum: [...TIPS] },
@@ -175,7 +186,7 @@ const COMMENT_SCHEMA = {
   properties: {
     id: { type: "string" },
     storyId: { type: "integer" },
-    ref: { type: "string", examples: ["PPP-104"] },
+    ref: { type: "string", examples: ["BYD-104"] },
     body: { type: "string" },
     author: {
       type: "object",
@@ -209,7 +220,7 @@ const storyIdParam = {
   name: "id",
   in: "path",
   required: true,
-  description: "The numeric story id — `4`, not `PPP-104`.",
+  description: "The numeric story id — `4`, not `BYD-104`.",
   schema: { type: "integer", minimum: 1 },
 } as const;
 
@@ -287,14 +298,14 @@ export async function buildOpenApiDocument() {
   // Better Auth composes this from `advanced.cookiePrefix`, and prefixes it
   // with `__Secure-` when the cookies are Secure. Naming it correctly is what
   // lets a tool send the right one.
-  const sessionCookie = `${secure ? "__Secure-" : ""}ppp.session_token`;
+  const sessionCookie = `${secure ? "__Secure-" : ""}byd.session_token`;
 
   const authHalf = await authPaths();
 
   return {
     openapi: "3.1.0",
     info: {
-      title: "Pretty Please Print",
+      title: "BYD Printing",
       version: process.env.PPP_TAG ?? "0.1.0",
       description:
         "The HTTP surface of one office's 3D-print queue.\n\n" +
@@ -969,7 +980,7 @@ export async function buildOpenApiDocument() {
                     type: "object",
                     properties: {
                       id: { type: "integer" },
-                      ref: { type: "string", examples: ["PPP-104"] },
+                      ref: { type: "string", examples: ["BYD-104"] },
                       title: { type: "string" },
                       dims: { type: ["string", "null"] },
                     },

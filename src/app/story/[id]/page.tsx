@@ -17,6 +17,7 @@ import { Toast } from "@/components/toast";
 import { ColorSwatch } from "@/components/color-swatch";
 import { WithdrawStory } from "@/components/withdraw-story";
 import { RequeueStory } from "@/components/requeue-story";
+import { CostPanel } from "@/components/cost-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +142,22 @@ export default async function StoryPage({
             <h1 className="m-0 mb-[13.2px] text-[36px] leading-[1.02] text-ink">
               {story.title}
             </h1>
+            {story.sourceUrl && (
+              <p className="m-0 mb-[13.2px] text-[13.5px]">
+                <a
+                  href={story.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="font-mono font-bold uppercase tracking-[0.04em] text-cherry-dk underline underline-offset-4 hover:text-cherry"
+                >
+                  Source ↗
+                </a>
+                <span className="ml-[6px] text-ink-3">
+                  — where the model came from. Not fetched or verified by
+                  this app.
+                </span>
+              </p>
+            )}
             {story.note && (
               <p className="m-0 mb-[22px] text-[16px] leading-[1.55] text-ink-2 text-pretty">
                 {story.note}
@@ -154,13 +171,26 @@ export default async function StoryPage({
                 <Fact label="Priority">{PRIORITY_CHIP[story.priority]?.label ?? story.priority}</Fact>
                 <Fact label="Material">{story.material}</Fact>
                 <Fact label="Colour wish">
-                  <span className="flex items-center gap-[8.8px]">
-                    <ColorSwatch
-                      mode={story.colorMode}
-                      style={story.colorStyle ?? story.colorHex}
-                      className="h-[18px] w-[18px] rounded-full border-2 border-ink"
-                    />
-                    {story.colorName}
+                  <span className="flex flex-wrap items-center gap-[8.8px]">
+                    <span className="flex items-center gap-[6px]">
+                      <ColorSwatch
+                        mode={story.colorMode}
+                        style={story.colorStyle ?? story.colorHex}
+                        className="h-[18px] w-[18px] rounded-full border-2 border-ink"
+                      />
+                      {story.colorName}
+                    </span>
+                    {story.additionalColorNames.map((name, i) => (
+                      <span key={name} className="flex items-center gap-[5px]">
+                        <span aria-hidden className="text-ink-3">+</span>
+                        <span
+                          aria-hidden
+                          className="h-[15px] w-[15px] rounded-full border-2 border-ink"
+                          style={{ background: story.additionalColorHexes[i] ?? story.colorHex }}
+                        />
+                        <span className="text-[13px] text-ink-2">{name}</span>
+                      </span>
+                    ))}
                   </span>
                 </Fact>
                 <Fact label="On offer">
@@ -221,6 +251,17 @@ export default async function StoryPage({
                 </p>
               </div>
             )}
+
+            {/* Cost calculator — homelab addition. Computed only from actual
+                weight/print-time once the owner records them; never a guess. */}
+            <CostPanel
+              storyId={story.id}
+              material={story.material}
+              weightGrams={story.weightGrams}
+              printMinutes={story.printMinutes}
+              isAdmin={user.role === "admin"}
+              from={`/story/${story.id}`}
+            />
 
             <section className="mt-[26.4px]">
               <h2 className="m-0 mb-[13.2px] font-display text-[22px] text-ink">

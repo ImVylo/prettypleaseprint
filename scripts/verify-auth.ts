@@ -510,15 +510,18 @@ async function main() {
   // ------------------------------------------------------------------------
   section("mail is optional, not required");
 
-  // With a transport configured the raw token stays inside the message: the
-  // caller gets no handover URL, so the admin cannot replay the link.
+  // With a transport configured the invite is emailed, and the copyable link
+  // is returned either way (the admin can copy it even when mail went out).
   const withMail = await createInvite({
     email: "mailed@office.example",
     invitedById: admin.id,
   });
-  check("with mail configured, the link is emailed and withheld from the caller",
-        withMail.handoverUrl === undefined,
-        "the raw token was handed back even though it was delivered");
+  check("with mail configured, the invite is emailed",
+        withMail.delivered === true,
+        "the invite was not delivered");
+  check("and the copyable link is returned either way",
+        typeof withMail.url === "string" && withMail.url.includes("/invite/"),
+        "no copyable link was returned");
   check("and it really was delivered",
         (await mailLink("mailed@office.example", CLAIM_LINK)) !== null);
 
@@ -535,9 +538,9 @@ async function main() {
     invitedById: admin.id,
   });
   check("with no transport, the admin gets a link to hand over",
-        typeof noMail.handoverUrl === "string" &&
-        noMail.handoverUrl.includes("/invite/"),
-        String(noMail.handoverUrl));
+        typeof noMail.url === "string" &&
+        noMail.url.includes("/invite/"),
+        String(noMail.url));
   check("and nothing was sent",
         (await mailLink("handover@office.example", CLAIM_LINK)) === null,
         "a message went out with no transport configured");
@@ -548,7 +551,7 @@ async function main() {
 
   // The handed-over link has to actually work, or the mode is theatre.
   const handoverBrowser = new Browser();
-  const handoverPage = await (await handoverBrowser.go(noMail.handoverUrl!)).text();
+  const handoverPage = await (await handoverBrowser.go(noMail.url!)).text();
   check("a handed-over invite link opens the claim page",
         handoverPage.includes("will print things for you"));
 

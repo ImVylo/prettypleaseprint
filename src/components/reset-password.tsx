@@ -63,7 +63,7 @@ export function ResetPassword({
           </p>
           <Submit />
         </div>
-        {state.sent && !state.handoverUrl && (
+        {state.sent && !state.url && (
           <div className="mt-[8px]">
             <Notice tone="good">
               Sent to {state.sent}. The link is inside the message and nowhere
@@ -71,9 +71,9 @@ export function ResetPassword({
             </Notice>
           </div>
         )}
-        {state.handoverUrl && (
+        {state.url && (
           <HandoverLink
-            url={state.handoverUrl}
+            url={state.url}
             note={`works once, expires in ${expiresInMinutes} minutes`}
           />
         )}

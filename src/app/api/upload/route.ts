@@ -29,6 +29,25 @@ export const dynamic = "force-dynamic";
 const bad = (status: number, error: string) =>
   NextResponse.json({ error }, { status });
 
+/**
+ * Only so many uploads are handled at once.
+ *
+ * This is what makes a 250 MB cap safe rather than hopeful. `request.formData()`
+ * buffers the whole body before a line of this handler runs, so peak memory is
+ * decided by how many large uploads overlap — nothing the validator does can
+ * change that. Bounding the overlap bounds the memory, which is the "size-based
+ * queue" the security audit named as one of the two answers. (The other,
+ * a streaming parse, needs the file to stop arriving as multipart at all; see
+ * docs/architecture.md.)
+ *
+ * A late arrival waits rather than being refused: somebody who has just spent a
+ * minute pushing 200 MB up office wifi should not be told to start again. Only
+ * once the queue itself is long does the app say no, because at that point the
+ * honest answer is that it is busy.
+ *
+ * Per process. A second app instance has its own gate, which is the right
+ * shape anyway — the memory it is protecting is also per process.
+ */
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return bad(401, "Sign in first.");
@@ -72,11 +91,13 @@ async function handleUpload(request: Request, user: Actor) {
     title: form.get("title") ?? "",
     material: form.get("material"),
     colorName: form.get("colorName"),
+    additionalColorNames: form.getAll("additionalColorNames"),
     quantity: form.get("quantity"),
     priority: form.get("priority") ?? undefined,
     tip: form.get("tip"),
     note: form.get("note") ?? "",
     printSettings: form.get("printSettings") ?? "",
+    sourceUrl: form.get("sourceUrl") ?? "",
   });
 
   const bytes = new Uint8Array(await file.arrayBuffer());

@@ -189,7 +189,10 @@ model RateLimit {
 /// `src/lib/auth.ts` via `user.validateUserInfo`).
 model Invite {
   id    String @id @default(cuid())
-  email String
+
+  /// Who the invite is for. Null for an open invite — a link the admin copies
+  /// and hands around directly; whoever claims it supplies their own address.
+  email String?
 
   /// SHA-256 of the invite token. The raw token exists only inside the
   /// emailed link — a database dump does not let anyone accept an invite.
@@ -231,7 +234,7 @@ model AuditEvent {
   /// Kept even if the account is later removed.
   actorEmail String?
 
-  /// What was acted on, in human terms: "PPP-104", "ayla@office.example".
+  /// What was acted on, in human terms: "BYD-104", "ayla@office.example".
   subject String?
 
   ip        String?
@@ -281,7 +284,7 @@ enum CatalogColorMode {
 }
 
 model Story {
-  /// Autoincrement so the display ref stays "PPP-" + (100 + id).
+  /// Autoincrement so the display ref stays "BYD-" + (100 + id).
   id     Int         @id @default(autoincrement())
   title  String
   status StoryStatus @default(Requested)
@@ -290,10 +293,12 @@ model Story {
   uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
   quantity  Int      @default(1)
+
   /// Set by the requester when filing and changeable while the ticket is still
   /// on the rail, by them or by the owner. It orders the owner's queue; it
   /// promises nothing about when the printer is free.
   priority  StoryPriority @default(medium)
+
   /// Snapshots the catalog label at submission time. Catalog entries may be
   /// renamed or disabled later without rewriting an old order.
   material  String   @default("PETG")
@@ -305,6 +310,23 @@ model Story {
   /// Snapshot of how the swatch behaves. Kept separate from the editable
   /// label so renaming "Whatever's on" cannot change an old ticket.
   colorMode  CatalogColorMode @default(solid)
+
+  /// Extra colours for a multi-colour print (AMS/MMU/manual filament swap),
+  /// beyond the primary `colorName`/`colorHex` above. Stored as a plain array
+  /// of the same catalogue names rather than a join table — the list is
+  /// short (capped at 4 total colours, see WishSchema), never queried on its
+  /// own, and a join table would only earn its keep past that scale. Empty
+  /// for the common single-colour case, which is also why the primary colour
+  /// stayed its own two columns instead of folding into this array: every
+  /// existing swatch/group-by (dashboard.ts, story cards) keeps working
+  /// unchanged against a ticket that predates this feature.
+  additionalColorNames String[] @default([])
+  /// Snapshotted hexes for the extra colours above, parallel to
+  /// `additionalColorNames`, so a multi-colour ticket's stripe still renders
+  /// after a catalogue colour is renamed or retired — same snapshot rule as
+  /// `colorHex`/`colorStyle` for the primary colour.
+  additionalColorHexes String[] @default([])
+
   tip       String
   note      String   @default("")
 
@@ -313,6 +335,16 @@ model Story {
   /// do not become a back-and-forth. FRR-103, option A — a plain string, not a
   /// structured/gated "advanced mode".
   printSettings String @default("")
+
+  /// Where the model came from, if not made by the requester — a MakerWorld,
+  /// Printables, Thingiverse or Thangs URL, say. No fetching happens against
+  /// it: neither Bambu Lab nor MakerWorld publishes a download API, and
+  /// scraping their pages would be brittle and outside their terms. This is
+  /// purely a reference link on the ticket so the owner can open the source
+  /// page themselves — slicer settings, prints/likes, the maker's notes —
+  /// without a round trip through chat. Optional; the requester still
+  /// uploads the actual .stl/.3mf as normal.
+  sourceUrl String?
 
   flagged    Boolean @default(false)
   flagReason String?
@@ -323,12 +355,6 @@ model Story {
   mimeType   String
   storageKey String
 
-  /// Where the model came from, when it was imported from a link instead of
-  /// uploaded: the model's page on the site it was fetched from. Built by the
-  /// server from what that site's API returned, never copied from what the
-  /// requester typed — see src/lib/import.ts. Null for an upload.
-  sourceUrl String?
-
   // --- measured from the mesh at upload time, display only ---
   //
   // There is deliberately no `estimate` column. A print time derived from the
@@ -336,6 +362,17 @@ model Story {
   // definition of done rules out claiming to know what the printer will do.
   // A real slicer integration would add one back — see src/lib/models.ts.
   dims String?
+
+  /// Actual filament used, in grams — entered by the owner once known
+  /// (weighed, or read off the slicer after the real print), never guessed
+  /// at upload time. Same reasoning as the dropped print-time estimate: a
+  /// number nobody measured is not shown. Cost is derived from this plus
+  /// `printMinutes` and the current MaterialRate — see src/lib/cost.ts.
+  weightGrams Int?
+  /// Actual wall-clock print time in minutes, entered by the owner the same
+  /// way as `weightGrams`. Deliberately not an estimate at any point in the
+  /// flow — see docs/architecture.md "Why there is no print-time estimate".
+  printMinutes Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -415,6 +452,40 @@ model Notification {
 
   @@index([recipientId, read])
   @@map("notification")
+}
+
+/// Owner-managed $/kg by material, plus one shared $/hour machine rate — the
+/// inputs the cost calculator needs (src/lib/cost.ts). Mirrors Benefit: a
+/// single-row-per-material table the owner edits, not a hardcoded const, so
+/// updating a filament price never touches code. A past ticket's computed
+/// cost is not stored — cost is derived at render time from the ticket's
+/// `material` + `weightGrams` + `printMinutes` and the CURRENT rate, exactly
+/// like the rest of this app's "nothing inferred, nothing stale" rule for
+/// numbers on a ticket. If prices need to be historical later, snapshot the
+/// rate onto the Story at completion instead of changing this table's shape.
+///
+/// `material` is a plain string keyed to the catalog material name (see
+/// CatalogMaterial), not a foreign key: a rate for a since-retired or
+/// since-renamed material keeps working rather than cascade-delete, for the
+/// same reason Story.material is a plain string.
+model MaterialRate {
+  material       String   @id
+  dollarsPerKg   Float
+  updatedAt      DateTime @updatedAt
+
+  @@map("material_rate")
+}
+
+/// The single shared hourly machine rate (electricity, wear, amortised
+/// upkeep). One row, id fixed at "default" — simpler than a singleton table
+/// pattern with no id at all, and consistent with how Prisma expects a
+/// primary key.
+model MachineRate {
+  id             String   @id @default("default")
+  dollarsPerHour Float
+  updatedAt      DateTime @updatedAt
+
+  @@map("machine_rate")
 }
 
 // ===========================================================================

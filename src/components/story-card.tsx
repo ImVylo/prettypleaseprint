@@ -36,13 +36,18 @@ export function StoryCard({
       href={`/story/${story.id}`}
       className="ticket group block rounded-card border-[3px] border-ink bg-porcelain shadow-stamp transition-transform hover:-translate-y-[2px] hover:shadow-stamp-lg"
     >
-      {/* The filament colour, worn as a stripe. */}
-      <ColorSwatch
-        mode={story.colorMode}
-        style={story.colorStyle ?? story.colorHex}
-        stripe
-        className="h-[8px] rounded-t-[7px] border-b-[3px] border-ink"
-      />
+      {/* The filament colour(s), worn as a stripe — split evenly across
+          colours for a multi-colour print, so the ticket itself hints at it
+          before you even open it. */}
+      <span
+        aria-hidden
+        className="flex h-[8px] overflow-hidden rounded-t-[7px] border-b-[3px] border-ink"
+      >
+        <span className="flex-1" style={{ background: story.colorStyle ?? story.colorHex }} />
+        {story.additionalColorHexes.map((hex, i) => (
+          <span key={i} className="flex-1" style={{ background: hex }} />
+        ))}
+      </span>
 
       <div className={compact ? "px-[13.2px] py-[11px]" : "px-[15px] py-[13.2px]"}>
         {/* Check number, and a stamp if the kitchen flagged it. */}
@@ -98,7 +103,7 @@ export function StoryCard({
           <div className="mt-[11px] flex items-center gap-[8px] rounded-[6px] border-2 border-ink bg-sun-wash px-[8px] py-[4px]">
             <span
               aria-hidden
-              className="ppp-extrude h-[4px] w-[26px] flex-none rounded-full bg-sun-dk"
+              className="byd-extrude h-[4px] w-[26px] flex-none rounded-full bg-sun-dk"
             />
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-sun-dk">
               on the bed

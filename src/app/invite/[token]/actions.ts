@@ -14,10 +14,13 @@ import {
   USERNAME_PATTERN,
   USERNAME_RULE,
 } from "@/lib/auth-rules";
-import { checkInviteToken, claimingInvite } from "@/lib/invites";
+import { checkInviteToken, claimingInvite, normalizeEmail, pendingInviteFor } from "@/lib/invites";
 
 const ClaimSchema = z.object({
   token: z.string().min(1),
+  // Only asked for an open invite — one created without an address. For a
+  // bound invite this is absent and the address comes from the invite row.
+  email: z.email("That does not look like an email address.").optional(),
   name: z.string().trim().min(1, "Tell us what to call you.").max(80),
   // Passed on as typed. The username plugin folds it to lower case for
   // `username` and keeps the original in `displayUsername`, so the person
@@ -37,7 +40,7 @@ const ClaimSchema = z.object({
 /** `field` puts the message against the input it belongs to. */
 export type ClaimState = {
   error?: string;
-  field?: "name" | "username" | "password";
+  field?: "email" | "name" | "username" | "password";
 };
 
 /** Better Auth's codes, in the words the person at the keyboard needs. */
@@ -96,6 +99,24 @@ export async function acceptInvite(
     redirect(`/invite/${encodeURIComponent(parsed.data.token)}`);
   }
 
+  // An open invite carries no address: the person claims it with their own.
+  // Bound before sign-up so the invite gate (which matches by email) admits
+  // exactly this link — the token was already checked above.
+  let email = check.invite.email;
+  if (!email) {
+    if (!parsed.data.email) {
+      return { error: "An email address is needed to set up the account.", field: "email" };
+    }
+    email = normalizeEmail(parsed.data.email);
+    if (await db.user.findUnique({ where: { email } })) {
+      return { error: "That email already has an account — sign in instead.", field: "email" };
+    }
+    if (await pendingInviteFor(email)) {
+      return { error: "That email already has an invite waiting — use that link instead.", field: "email" };
+    }
+    await db.invite.update({ where: { id: check.invite.id }, data: { email } });
+  }
+
   // The name the invitee chose wins over the one the admin guessed. It is read
   // back out of the invite by the `user.create.before` hook in src/lib/auth.ts.
   await db.invite.update({
@@ -107,10 +128,10 @@ export async function acceptInvite(
     // Inside `claimingInvite`, because the token was checked a few lines up
     // and that — not the address — is what the gate in src/lib/auth.ts admits.
     const requestHeaders = await headers();
-    await claimingInvite(check.invite, () =>
+    await claimingInvite(email, () =>
       auth.api.signUpEmail({
         body: {
-          email: check.invite.email,
+          email,
           name: parsed.data.name,
           username: parsed.data.username,
           password: parsed.data.password,

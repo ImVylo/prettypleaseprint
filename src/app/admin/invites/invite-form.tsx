@@ -23,8 +23,8 @@ export function InviteForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (state.sent) formRef.current?.reset();
-  }, [state.sent]);
+    if (state.url) formRef.current?.reset();
+  }, [state.url]);
 
   return (
     <form
@@ -42,15 +42,17 @@ export function InviteForm() {
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-[17.6px]">
         <div>
-          <Label htmlFor="invite-email">Email</Label>
+          <Label htmlFor="invite-email">Email (optional)</Label>
           <Input
             id="invite-email"
             name="email"
             type="email"
-            required
             placeholder="ayla@office.example"
             autoComplete="off"
           />
+          <p className="m-0 mt-[6px] font-mono text-[11px] uppercase tracking-[0.04em] text-ink-3">
+            Leave blank to make an open link to copy and hand around.
+          </p>
         </div>
         <div>
           <Label htmlFor="invite-name">Name (optional)</Label>
@@ -66,20 +68,25 @@ export function InviteForm() {
 
       <div className="mt-[17.6px] flex flex-wrap items-center gap-[13.2px]">
         <Submit />
-        {state.sent && !state.handoverUrl && (
+        {state.url && state.open && (
+          <span className="rounded-chip border-2 border-ink bg-sun px-[11px] py-[3px] font-mono text-[11.5px] font-bold uppercase text-ink">
+            Open link created
+          </span>
+        )}
+        {state.url && !state.open && state.delivered && (
           <span className="rounded-chip border-2 border-ink bg-mint px-[11px] py-[3px] font-mono text-[11.5px] font-bold uppercase text-ink">
             Sent · {state.sent} has been emailed a link
           </span>
         )}
-        {state.sent && state.handoverUrl && (
+        {state.url && !state.open && !state.delivered && (
           <span className="rounded-chip border-2 border-ink bg-sun px-[11px] py-[3px] font-mono text-[11.5px] font-bold uppercase text-ink">
             Invite created for {state.sent}
           </span>
         )}
       </div>
 
-      {state.handoverUrl && (
-        <HandoverLink url={state.handoverUrl} note="works once, expires in 7 days" />
+      {state.url && (
+        <HandoverLink url={state.url} note="works once, expires in 7 days" />
       )}
 
       {state.error && (

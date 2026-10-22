@@ -55,6 +55,15 @@ export async function checkWish(raw: Record<string, unknown>): Promise<CheckedWi
     throw problem(400, "That material and colour combination is no longer available.");
   }
 
+  // Extra colours for a multi-colour print are held to the same live shelf as
+  // the primary: a colour the owner has taken off is refused, not silently
+  // dropped or repainted.
+  for (const name of wish.additionalColorNames) {
+    if (name === wish.colorName) continue;
+    const extra = await availableSelection(wish.material, name);
+    if (!extra) throw problem(400, `“${name}” is not a colour on offer — pick from the list.`);
+  }
+
   // The tip is owner-managed data, so the list — not a compile-time enum — is
   // what decides. A benefit the owner has retired, or one never on the list,
   // is refused here even if the form somehow posted it. If the owner has no
@@ -123,6 +132,18 @@ export async function openRequest(
 
   const title = wish.title || filename.replace(/\.(stl|3mf)$/i, "");
 
+  // Multi-colour: dedupe, drop the primary, snapshot each extra colour's hex
+  // so a ticket's stripe survives a later catalogue rename or retirement — the
+  // same snapshot rule as `colorHex` for the primary.
+  const additionalColorNames = [...new Set(wish.additionalColorNames)].filter(
+    (name) => name !== wish.colorName,
+  );
+  const additionalColorHexes: string[] = [];
+  for (const name of additionalColorNames) {
+    const extra = await availableSelection(wish.material, name);
+    additionalColorHexes.push(extra?.hex ?? selection.hex);
+  }
+
   let story;
   try {
     story = await db.story.create({
@@ -137,6 +158,8 @@ export async function openRequest(
         colorHex: selection.hex,
         colorStyle: selection.style,
         colorMode: selection.mode,
+        additionalColorNames,
+        additionalColorHexes,
         tip: wish.tip,
         note: wish.note,
         printSettings: wish.printSettings,
@@ -145,7 +168,9 @@ export async function openRequest(
         mimeType: MIME_FOR[extension] ?? "application/octet-stream",
         storageKey: key,
         dims: inspection.dims,
-        sourceUrl: origin?.url ?? null,
+        // An import sets this from the page it fetched; a plain upload carries
+        // the reference link the requester typed.
+        sourceUrl: origin?.url ?? (wish.sourceUrl || null),
       },
     });
   } catch (error) {

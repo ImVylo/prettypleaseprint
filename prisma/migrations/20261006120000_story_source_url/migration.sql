@@ -5,4 +5,4 @@
 -- previous image when a deploy fails its health check, and it does not undo
 -- migrations. That image's client names its columns and has never heard of
 -- this one, so it reads and writes tickets exactly as before.
-ALTER TABLE "story" ADD COLUMN "sourceUrl" TEXT;
+ALTER TABLE "story" ADD COLUMN IF NOT EXISTS "sourceUrl" TEXT;

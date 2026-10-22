@@ -76,6 +76,17 @@ export const WishSchema = z.object({
   // small before that query runs.
   material: z.string().trim().min(1, "Pick a material.").max(40),
   colorName: z.string().trim().min(1, "Pick a colour.").max(40),
+  /// Optional extra colours for a multi-colour print (AMS/MMU/manual
+  /// filament swap). Capped at 3 — 4 colours total including the primary.
+  /// The names are validated against the active catalogue in the upload route;
+  /// this module is shared with the client bundle and only checks the shape.
+  /// Duplicates and the primary colour itself are stripped server-side so the
+  /// stored list is always the *extra* colours, never a repeat of `colorName`.
+  additionalColorNames: z
+    .array(z.string().trim().min(1, "Pick a colour.").max(40))
+    .max(3, "Up to 3 additional colours — 4 total.")
+    .optional()
+    .default([]),
   quantity: QuantitySchema,
   // Optional on the wire, so a client written before priority existed still
   // files a request — it comes out `medium`, which is what it would have meant.
@@ -92,6 +103,18 @@ export const WishSchema = z.object({
     .string()
     .trim()
     .max(2000, "Those print settings are very long.")
+    .optional()
+    .default(""),
+  // Where the model came from, if the requester didn't make it themselves —
+  // a MakerWorld/Printables/Thingiverse/Thangs link, say. Reference only:
+  // nothing is fetched from it. `.or(z.literal(""))` because an empty form
+  // field arrives as "", and that should mean "no source", not a validation
+  // error on a field nobody filled in.
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(2000, "That URL is oddly long.")
+    .refine((s) => s === "" || /^https?:\/\//i.test(s), "That doesn't look like a URL (needs http:// or https://).")
     .optional()
     .default(""),
 });
