@@ -35,7 +35,7 @@ services:
       target: runner
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://ppp:***@db:5432/ppp?schema=public
+      DATABASE_URL: postgresql://ppp:${DB_PASSWORD}@db:5432/ppp?schema=public
       MODELS_ROOT: /uploads
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
