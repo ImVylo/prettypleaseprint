@@ -264,6 +264,7 @@ export default async function StoryPage({
             <CostPanel
               storyId={story.id}
               material={story.material}
+              colorName={story.colorName}
               weightGrams={story.weightGrams}
               printMinutes={story.printMinutes}
               isAdmin={user.role === "admin"}

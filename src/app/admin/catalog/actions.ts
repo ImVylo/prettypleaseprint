@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/authz";
 import { record } from "@/lib/audit";
-import { RateProblem, setMaterialRate } from "@/lib/cost";
+import { RateProblem, setMachineRate, setMaterialRate } from "@/lib/cost";
 import { COLOR_MODES } from "@/lib/catalog";
 
 const Name = z.string().trim().min(1).max(40).transform((value) => value.replace(/\s+/g, " "));
@@ -22,6 +22,7 @@ const WHATEVER_HEX = "#b6bcc2";
 const WHATEVER_STYLE = "linear-gradient(135deg, #e4322f 0%, #f6c945 20%, #43aa8b 40%, #2787c9 60%, #7557c7 80%, #e4328c 100%)";
 const Direction = z.enum(["up", "down"]);
 const Mode = z.enum(COLOR_MODES);
+const Rate = z.coerce.number().finite().min(0).max(100000);
 
 function colorInput(formData: FormData) {
   const parsedName = Name.safeParse(formData.get("name"));
@@ -131,6 +132,17 @@ export async function setMaterialRateAction(formData: FormData): Promise<void> {
   }
 }
 
+export async function setMachineRateAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  try {
+    const dollarsPerHour = await setMachineRate(admin, formData.get("dollarsPerHour"));
+    back("toast", `Machine rate set to $${dollarsPerHour.toFixed(2)}/hour.`);
+  } catch (error) {
+    if (error instanceof RateProblem) back("error", error.message);
+    throw error;
+  }
+}
+
 export async function removeMaterialAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
@@ -217,13 +229,21 @@ export async function editColorAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const { name, hex, style, mode } = colorInput(formData);
+  // Empty means "inherit the material's $/kg"; anything else must be a number.
+  const rateRaw = formData.get("dollarsPerKg");
+  let dollarsPerKg: number | null = null;
+  if (rateRaw !== "" && rateRaw !== null && rateRaw !== undefined) {
+    const parsedRate = Rate.safeParse(rateRaw);
+    if (!parsedRate.success) back("error", "Enter a price of $0 or more, or leave it empty to use the material's rate.");
+    dollarsPerKg = parsedRate.data;
+  }
   const color = await db.catalogColor.findUnique({
     where: { id },
     include: { material: { select: { name: true } } },
   });
   if (!color) back("error", "That colour no longer exists.");
   try {
-    await db.catalogColor.update({ where: { id }, data: { name, hex, style, mode } });
+    await db.catalogColor.update({ where: { id }, data: { name, hex, style, mode, dollarsPerKg } });
   } catch (error) {
     if (duplicate(error)) back("error", `${color.material.name} already has a colour named ${name}.`);
     throw error;

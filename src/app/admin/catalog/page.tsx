@@ -7,11 +7,13 @@ import { RemoveColorButton } from "./remove-color-button";
 import { AddColorForm } from "./add-color-form";
 import { EditMaterialInline } from "./edit-material-inline";
 import { MaterialRateForm } from "./material-rate-form";
+import { machineRate } from "@/lib/cost";
 import { EditColorInline } from "./edit-color-inline";
 import {
   addMaterialAction,
   moveColorAction,
   moveMaterialAction,
+  setMachineRateAction,
   toggleColorAction,
   toggleMaterialAction,
 } from "./actions";
@@ -63,6 +65,7 @@ export default async function CatalogPage({
     db.materialRate.findMany(),
   ]);
   const rateByName = new Map(rates.map((r) => [r.material, r.dollarsPerKg]));
+  const hourly = await machineRate();
 
   return (
     <>
@@ -76,6 +79,18 @@ export default async function CatalogPage({
 
         {params.toast && <div className="mb-[17.6px] max-w-[780px]"><Notice tone="good">{params.toast}</Notice></div>}
         {params.error && <div className="mb-[17.6px] max-w-[780px]"><Notice tone="warn">{params.error}</Notice></div>}
+
+        <form action={setMachineRateAction} className="mb-[26.4px] flex max-w-[680px] flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
+          <div className="min-w-[260px] flex-1">
+            <Label htmlFor="machine-rate">Machine time — one shared $/hour</Label>
+            <div className="flex items-center gap-[6px]">
+              <span className="text-[14px] text-ink-2">$</span>
+              <Input id="machine-rate" name="dollarsPerHour" type="number" min={0} step="0.01" defaultValue={hourly} aria-label="Machine rate per hour" className="w-[120px]" />
+              <span className="text-[13px] text-ink-3">/ hour — electricity, wear, amortised upkeep</span>
+            </div>
+          </div>
+          <Button type="submit" variant="secondary">Save</Button>
+        </form>
 
         <form action={addMaterialAction} className="mb-[26.4px] flex max-w-[680px] flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
           <div className="min-w-[220px] flex-1">
@@ -128,6 +143,7 @@ export default async function CatalogPage({
                       colorStyle={color.style}
                       colorMode={color.mode}
                       materialName={material.name}
+                      dollarsPerKg={color.dollarsPerKg}
                     />
                     <OrderButtons
                       id={color.id}

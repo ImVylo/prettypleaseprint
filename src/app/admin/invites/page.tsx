@@ -121,7 +121,7 @@ export default async function InvitesPage() {
                     {/* What this person has sent — the first thing to look at
                         before resetting or suspending them. */}
                     <Link
-                      href={`/admin/prints?who=${encodeURIComponent(m.id)}`}
+                      href={`/history?who=${encodeURIComponent(m.id)}`}
                       className="stamp rounded-chip border-[3px] border-ink bg-porcelain px-[13.2px] py-[6px] text-[13px] font-bold text-ink hover:bg-sun"
                     >
                       Their prints

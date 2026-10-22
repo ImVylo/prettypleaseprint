@@ -20,7 +20,7 @@ import { storyRef, type Actor } from "@/lib/scope";
  * guessed one.
  *
  * Rates are owner-managed data, exactly like `Benefit` — a $/kg per
- * material and one shared $/hour machine rate, editable at /admin/rates
+ * material and one shared $/hour machine rate, editable at /admin/catalog
  * with no code change and no redeploy.
  */
 
@@ -38,7 +38,6 @@ function assertAdmin(actor: Actor) {
 }
 
 function refresh() {
-  revalidatePath("/admin/rates");
   revalidatePath("/admin/catalog");
   revalidatePath("/queue");
   revalidatePath("/board");
@@ -63,12 +62,22 @@ export async function machineRate(): Promise<number> {
 /** A lookup ready for `estimateCost` without one query per ticket. */
 export async function rateTable(): Promise<{
   perKg: Record<string, number>;
+  /** `material:colour` → $/kg, only for colours that override their material. */
+  perColorKg: Record<string, number>;
   perHour: number;
 }> {
-  const [materials, hour] = await Promise.all([listMaterialRates(), machineRate()]);
+  const [materials, colors, hour] = await Promise.all([
+    listMaterialRates(),
+    db.catalogColor.findMany({ include: { material: { select: { name: true } } } }),
+    machineRate(),
+  ]);
   const perKg: Record<string, number> = {};
   for (const m of materials) perKg[m.material] = m.dollarsPerKg;
-  return { perKg, perHour: hour };
+  const perColorKg: Record<string, number> = {};
+  for (const c of colors) {
+    if (c.dollarsPerKg != null) perColorKg[`${c.material.name}:${c.name}`] = c.dollarsPerKg;
+  }
+  return { perKg, perColorKg, perHour: hour };
 }
 
 /**
@@ -133,13 +142,16 @@ export type CostEstimate = {
  */
 export function estimateCost(
   material: string,
+  color: string | null | undefined,
   weightGrams: number | null | undefined,
   printMinutes: number | null | undefined,
-  rates: { perKg: Record<string, number>; perHour: number },
+  rates: { perKg: Record<string, number>; perColorKg: Record<string, number>; perHour: number },
 ): CostEstimate | null {
   if (!weightGrams && !printMinutes) return null;
 
-  const perKg = rates.perKg[material] ?? 0;
+  const perKg = color
+    ? (rates.perColorKg[`${material}:${color}`] ?? rates.perKg[material] ?? 0)
+    : (rates.perKg[material] ?? 0);
   const materialCost = weightGrams ? (weightGrams / 1000) * perKg : 0;
   const machineCost = printMinutes ? (printMinutes / 60) * rates.perHour : 0;
 

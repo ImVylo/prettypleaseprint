@@ -9,6 +9,7 @@ import { recordActualsAction } from "@/app/admin/rates/actions";
 export async function CostPanel({
   storyId,
   material,
+  colorName,
   weightGrams,
   printMinutes,
   isAdmin,
@@ -16,13 +17,14 @@ export async function CostPanel({
 }: {
   storyId: number;
   material: string;
+  colorName: string | null;
   weightGrams: number | null;
   printMinutes: number | null;
   isAdmin: boolean;
   from: string;
 }) {
   const rates = await rateTable();
-  const cost = estimateCost(material, weightGrams, printMinutes, rates);
+  const cost = estimateCost(material, colorName, weightGrams, printMinutes, rates);
 
   return (
     <div className="mt-[17.6px] rounded-panel border-[3px] border-ink bg-mint-wash p-[17.6px]">

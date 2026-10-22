@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/authz";
-import { RateProblem, recordActuals, setMachineRate } from "@/lib/cost";
+import { RateProblem, recordActuals } from "@/lib/cost";
 
 /**
  * The owner's controls for cost rates and per-ticket actuals, as plain
@@ -14,17 +14,6 @@ import { RateProblem, recordActuals, setMachineRate } from "@/lib/cost";
 
 function back(params: Record<string, string>): never {
   redirect(`/admin/rates?${new URLSearchParams(params).toString()}`);
-}
-
-export async function setMachineRateAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
-  try {
-    const dollarsPerHour = await setMachineRate(admin, formData.get("dollarsPerHour"));
-    back({ toast: `Machine rate set to $${dollarsPerHour.toFixed(2)}/hour` });
-  } catch (error) {
-    if (error instanceof RateProblem) back({ error: error.message });
-    throw error;
-  }
 }
 
 /**

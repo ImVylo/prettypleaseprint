@@ -174,6 +174,12 @@ export type HistoryFilters = {
   material?: string;
   /** Only tickets filed within this many days; undefined = all time. */
   sinceDays?: number;
+  /**
+   * Only tickets from these people. Naming a "who" broadens the view the way
+   * the old prints-by-person page did: with no explicit status, it shows every
+   * status, not just the finished ones history defaults to.
+   */
+  uploaderIds?: string[];
 };
 
 /** Fields the history rows render. Named, so no column leaks by a spread. */
@@ -203,12 +209,15 @@ export type HistoryRow = Prisma.StoryGetPayload<{ select: typeof HISTORY_FIELDS 
 export function listHistory(actor: Actor, filters: HistoryFilters = {}): Promise<HistoryRow[]> {
   const inHistory = filters.status && (HISTORY_STATUSES as readonly string[]).includes(filters.status)
     ? { status: filters.status }
-    : { status: { in: [...HISTORY_STATUSES] } };
+    : filters.uploaderIds?.length
+      ? {}
+      : { status: { in: [...HISTORY_STATUSES] } };
 
   const where: Prisma.StoryWhereInput = {
     AND: [
       storyScope(actor),
       inHistory,
+      ...(filters.uploaderIds?.length ? [{ uploaderId: { in: filters.uploaderIds } }] : []),
       ...(filters.material ? [{ material: filters.material as Prisma.StoryWhereInput["material"] }] : []),
       ...(filters.sinceDays
         ? [{ createdAt: { gte: new Date(Date.now() - filters.sinceDays * 86_400_000) } }]

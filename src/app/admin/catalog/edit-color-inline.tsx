@@ -14,6 +14,7 @@ export function EditColorInline({
   colorStyle,
   colorMode,
   materialName,
+  dollarsPerKg,
 }: {
   id: string;
   name: string;
@@ -21,6 +22,7 @@ export function EditColorInline({
   colorStyle: string;
   colorMode: ColorMode;
   materialName: string;
+  dollarsPerKg: number | null;
 }) {
   const matches = colorStyle.match(/#[0-9a-f]{6}/gi) ?? [];
   const [mode, setMode] = useState<ColorMode>(colorMode);
@@ -44,6 +46,10 @@ export function EditColorInline({
           <div className="min-w-[150px] flex-1">
             <Label htmlFor={`edit-color-${id}`}>Colour name</Label>
             <Input id={`edit-color-${id}`} name="name" defaultValue={name} required maxLength={40} />
+          </div>
+          <div className="w-[110px]">
+            <Label htmlFor={`edit-rate-${id}`}>$/kg</Label>
+            <Input id={`edit-rate-${id}`} name="dollarsPerKg" type="number" min={0} step="0.01" defaultValue={dollarsPerKg ?? ""} placeholder="inherit" />
           </div>
           <div className="w-[115px]">
             <Label htmlFor={`edit-mode-${id}`}>Swatch</Label>

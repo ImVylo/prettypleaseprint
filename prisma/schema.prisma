@@ -412,6 +412,8 @@ model CatalogColor {
   style      String
   /// `solid`, `gradient`, or `whatever`; never inferred from the display name.
   mode       CatalogColorMode @default(solid)
+  /// Optional $/kg override for this specific colour; null inherits the material's rate.
+  dollarsPerKg Float?
   active     Boolean         @default(true)
   sortOrder  Int             @default(0)
   createdAt  DateTime        @default(now())

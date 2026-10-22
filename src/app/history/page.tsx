@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireUser, printerName } from "@/lib/authz";
 import { storyRef } from "@/lib/scope";
-import { HISTORY_STATUSES, listHistory } from "@/lib/stories";
+import { HISTORY_STATUSES, listHistory, listPeopleWithPrints } from "@/lib/stories";
 import { relativeTime } from "@/lib/catalog";
 import { knownMaterialNames } from "@/lib/catalog-data";
 import { AppHeader } from "@/components/app-header";
@@ -39,9 +39,9 @@ const SINCE = [
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; material?: string; since?: string }>;
+  searchParams: Promise<{ status?: string; material?: string; since?: string; who?: string }>;
 }) {
-  const [{ status, material, since }, user] = await Promise.all([
+  const [{ status, material, since, who }, user] = await Promise.all([
     searchParams,
     requireUser("/history"),
   ]);
@@ -50,6 +50,10 @@ export default async function HistoryPage({
     knownMaterialNames(),
   ]);
   const isAdmin = user.role === "admin";
+
+  // The "who" filter is the old prints-by-person page folded in — owner-only.
+  const people = isAdmin ? await listPeopleWithPrints(user) : [];
+  const whoFilter = who && people.some((p) => p.id === who) ? who : undefined;
 
   // Only honour values we recognise; anything else falls back to "all".
   const statusFilter =
@@ -64,9 +68,10 @@ export default async function HistoryPage({
     status: statusFilter,
     material: materialFilter,
     sinceDays: sincePreset.days,
+    uploaderIds: whoFilter ? [whoFilter] : undefined,
   });
 
-  const hasFilter = Boolean(statusFilter || materialFilter || sincePreset.key !== "all");
+  const hasFilter = Boolean(statusFilter || materialFilter || whoFilter || sincePreset.key !== "all");
 
   const selectClass =
     "rounded-card border-[3px] border-ink bg-porcelain px-[13.2px] py-[8px] text-[14px] font-bold text-ink";
@@ -100,6 +105,17 @@ export default async function HistoryPage({
               ))}
             </select>
           </label>
+          {isAdmin && (
+            <label className="flex flex-col gap-[4px]">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">Who</span>
+              <select name="who" defaultValue={whoFilter ?? ""} className={selectClass}>
+                <option value="">Anyone</option>
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} · {p.prints}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="flex flex-col gap-[4px]">
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-2">Material</span>
             <select name="material" defaultValue={materialFilter ?? ""} className={selectClass}>
