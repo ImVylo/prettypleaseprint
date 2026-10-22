@@ -79,33 +79,31 @@ export class InviteError extends Error {
 }
 
 /**
- * What the caller gets back. `handoverUrl` is present only when the link could
- * not be delivered, i.e. no mail transport is configured.
- *
- * When mail works, the raw token is still withheld: it exists only inside the
- * message, so not even the admin who sent it can replay the link. That
- * property is worth keeping wherever it can be kept — it just cannot be kept
- * when there is nowhere to send the message, and refusing to work at all was
- * the worse answer.
+ * What the caller gets back. `url` is always present — the admin copies it
+ * and hands it over however they like (chat, a printed slip, in person).
+ * `delivered` says whether it also went out by email; false for an open
+ * invite (no address to send to) or when no mail transport is configured.
  */
-export type CreatedInvite = { invite: Invite; handoverUrl?: string };
+export type CreatedInvite = { invite: Invite; url: string; delivered: boolean };
 
 export async function createInvite(opts: {
-  email: string;
+  email?: string | null;
   name?: string | null;
   role?: Role;
   invitedById: string;
 }): Promise<CreatedInvite> {
-  const email = normalizeEmail(opts.email);
+  const email = opts.email?.trim() ? normalizeEmail(opts.email) : null;
 
-  if (await db.user.findUnique({ where: { email } })) {
-    throw new InviteError(`${email} already has an account.`, "already_a_member");
-  }
-  if (await pendingInviteFor(email)) {
-    throw new InviteError(
-      `${email} already has an invite that has not been used yet.`,
-      "already_invited",
-    );
+  if (email) {
+    if (await db.user.findUnique({ where: { email } })) {
+      throw new InviteError(`${email} already has an account.`, "already_a_member");
+    }
+    if (await pendingInviteFor(email)) {
+      throw new InviteError(
+        `${email} already has an invite that has not been used yet.`,
+        "already_invited",
+      );
+    }
   }
 
   const token = generateToken();
@@ -122,16 +120,18 @@ export async function createInvite(opts: {
   });
 
   const url = inviteUrl(token);
-  const delivered = await sendMail(
-    inviteEmail({
-      to: email,
-      url,
-      inviterName: invite.invitedBy.name,
-      expiresInDays: INVITE_TTL_DAYS,
-    }),
-  );
+  const delivered = email
+    ? await sendMail(
+        inviteEmail({
+          to: email,
+          url,
+          inviterName: invite.invitedBy.name,
+          expiresInDays: INVITE_TTL_DAYS,
+        }),
+      )
+    : false;
 
-  return delivered ? { invite } : { invite, handoverUrl: url };
+  return { invite, url, delivered };
 }
 
 /**
@@ -158,16 +158,18 @@ export async function resendInvite(inviteId: string): Promise<CreatedInvite> {
   });
 
   const url = inviteUrl(token);
-  const delivered = await sendMail(
-    inviteEmail({
-      to: invite.email,
-      url,
-      inviterName: existing.invitedBy.name,
-      expiresInDays: INVITE_TTL_DAYS,
-    }),
-  );
+  const delivered = invite.email
+    ? await sendMail(
+        inviteEmail({
+          to: invite.email,
+          url,
+          inviterName: existing.invitedBy.name,
+          expiresInDays: INVITE_TTL_DAYS,
+        }),
+      )
+    : false;
 
-  return delivered ? { invite } : { invite, handoverUrl: url };
+  return { invite, url, delivered };
 }
 
 export async function revokeInvite(inviteId: string): Promise<void> {

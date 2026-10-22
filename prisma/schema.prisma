@@ -186,7 +186,10 @@ model RateLimit {
 /// `src/lib/auth.ts` via `user.validateUserInfo`).
 model Invite {
   id    String @id @default(cuid())
-  email String
+
+  /// Who the invite is for. Null for an open invite — a link the admin copies
+  /// and hands around directly; whoever claims it supplies their own address.
+  email String?
 
   /// SHA-256 of the invite token. The raw token exists only inside the
   /// emailed link — a database dump does not let anyone accept an invite.
