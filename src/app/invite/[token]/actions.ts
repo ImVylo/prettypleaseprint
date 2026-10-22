@@ -81,6 +81,9 @@ export async function acceptInvite(
 ): Promise<ClaimState> {
   const parsed = ClaimSchema.safeParse({
     token: formData.get("token"),
+    // Only present for an open invite (bound invites render the address as a
+    // disabled field with no name, so it never arrives here).
+    email: formData.get("email") ?? undefined,
     name: formData.get("name"),
     username: formData.get("username"),
     password: formData.get("password"),
