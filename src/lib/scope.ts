@@ -67,7 +67,7 @@ export const FLOW = [
  * on in the profile, which is the whole point of having an end state: without
  * one the board only ever grows.
  */
-export const BOARD = FLOW.slice(0, -1) as readonly StoryStatus[];
+export const BOARD = ["Requested", "Quoted", "Accepted", "Printing", "Delivery"] as const satisfies readonly StoryStatus[];
 
 /** Is this the end of the line? */
 export function isTerminal(status: StoryStatus): boolean {

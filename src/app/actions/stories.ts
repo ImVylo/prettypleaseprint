@@ -12,6 +12,9 @@ import {
   flagStory as flag,
   changeStoryPriority as reprioritise,
   changeStoryRequester as reassign,
+  sendQuote as quoteStory,
+  approveQuote as approveStoryQuote,
+  declineQuote as declineStoryQuote,
   storyIdOr400,
   withdrawStory as withdraw,
 } from "@/lib/stories";
@@ -149,6 +152,42 @@ export async function changeStoryRequester(formData: FormData): Promise<void> {
   try {
     const done = await reassign(admin, id, formData.get("requesterId"));
     back(`/story/${id}`, { toast: `Asked by ${done.fromName} → ${done.toName}.` });
+  } catch (error) {
+    if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
+    throw error;
+  }
+}
+
+export async function sendQuote(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const id = storyIdOr400(formData.get("storyId"));
+  try {
+    const done = await quoteStory(admin, id);
+    back(`/story/${id}`, { toast: `Quote sent: $${done.total.toFixed(2)} · ${done.uploaderName} notified` });
+  } catch (error) {
+    if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
+    throw error;
+  }
+}
+
+export async function approveQuote(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const id = storyIdOr400(formData.get("storyId"));
+  try {
+    const done = await approveStoryQuote(user, id);
+    back(`/story/${id}`, { toast: `Approved — ${done.ref} is on the rail.` });
+  } catch (error) {
+    if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
+    throw error;
+  }
+}
+
+export async function declineQuote(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const id = storyIdOr400(formData.get("storyId"));
+  try {
+    const done = await declineStoryQuote(user, id);
+    back(`/story/${id}`, { toast: `Quote declined — ${done.ref} is closed.` });
   } catch (error) {
     if (error instanceof StoryProblem) back(`/story/${id}`, { toast: error.message });
     throw error;

@@ -250,6 +250,7 @@ model AuditEvent {
 
 enum StoryStatus {
   Requested
+  Quoted
   Accepted
   Printing
   Done
@@ -373,6 +374,9 @@ model Story {
   /// way as `weightGrams`. Deliberately not an estimate at any point in the
   /// flow — see docs/architecture.md "Why there is no print-time estimate".
   printMinutes Int?
+  /// Frozen total at quote time. A quote is a number the requester approved,
+  /// so it must not drift when a rate is edited later — see src/lib/cost.ts.
+  quotedTotal Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

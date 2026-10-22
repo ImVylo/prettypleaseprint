@@ -51,7 +51,7 @@ export default async function QueuePage({
     .filter((s) => s.status === "Requested")
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1));
   const working = stories.filter(
-    (s) => s.status !== "Requested" && s.status !== "Declined",
+    (s) => s.status !== "Requested" && s.status !== "Declined" && s.status !== "Quoted",
   );
 
   return (

@@ -12,6 +12,7 @@ export async function CostPanel({
   colorName,
   weightGrams,
   printMinutes,
+  quotedTotal,
   isAdmin,
   from,
 }: {
@@ -20,6 +21,7 @@ export async function CostPanel({
   colorName: string | null;
   weightGrams: number | null;
   printMinutes: number | null;
+  quotedTotal: number | null;
   isAdmin: boolean;
   from: string;
 }) {
@@ -32,7 +34,12 @@ export async function CostPanel({
         Cost
       </div>
 
-      {cost ? (
+      {quotedTotal != null ? (
+        <div className="flex flex-wrap items-baseline gap-[13.2px]">
+          <span className="font-display text-[26px] text-ink">{formatDollars(quotedTotal)}</span>
+          <span className="font-mono text-[12px] text-ink-3">quoted · awaiting approval</span>
+        </div>
+      ) : cost ? (
         <div className="flex flex-wrap items-baseline gap-[13.2px]">
           <span className="font-display text-[26px] text-ink">{formatDollars(cost.total)}</span>
           <span className="font-mono text-[12px] text-ink-3">

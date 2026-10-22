@@ -80,25 +80,27 @@ export default async function CatalogPage({
         {params.toast && <div className="mb-[17.6px] max-w-[780px]"><Notice tone="good">{params.toast}</Notice></div>}
         {params.error && <div className="mb-[17.6px] max-w-[780px]"><Notice tone="warn">{params.error}</Notice></div>}
 
-        <form action={setMachineRateAction} className="mb-[26.4px] flex max-w-[680px] flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
-          <div className="min-w-[260px] flex-1">
-            <Label htmlFor="machine-rate">Machine time — one shared $/hour</Label>
-            <div className="flex items-center gap-[6px]">
-              <span className="text-[14px] text-ink-2">$</span>
-              <Input id="machine-rate" name="dollarsPerHour" type="number" min={0} step="0.01" defaultValue={hourly} aria-label="Machine rate per hour" className="w-[120px]" />
-              <span className="text-[13px] text-ink-3">/ hour — electricity, wear, amortised upkeep</span>
+        <div className="mb-[26.4px] grid grid-cols-1 gap-[17.6px] lg:grid-cols-2">
+          <form action={setMachineRateAction} className="flex min-w-0 flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
+            <div className="min-w-[220px] flex-1">
+              <Label htmlFor="machine-rate">Machine time — one shared $/hour</Label>
+              <div className="flex items-center gap-[6px]">
+                <span className="text-[14px] text-ink-2">$</span>
+                <Input id="machine-rate" name="dollarsPerHour" type="number" min={0} step="0.01" defaultValue={hourly} aria-label="Machine rate per hour" className="w-[110px]" />
+                <span className="text-[12px] text-ink-3">/ hour — electricity &amp; wear</span>
+              </div>
             </div>
-          </div>
-          <Button type="submit" variant="secondary">Save</Button>
-        </form>
+            <Button type="submit" variant="secondary">Save</Button>
+          </form>
 
-        <form action={addMaterialAction} className="mb-[26.4px] flex max-w-[680px] flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
-          <div className="min-w-[220px] flex-1">
-            <Label htmlFor="material-name">Add a material</Label>
-            <Input id="material-name" name="name" required maxLength={40} placeholder="ASA" />
-          </div>
-          <Button type="submit" variant="secondary">Add material</Button>
-        </form>
+          <form action={addMaterialAction} className="flex min-w-0 flex-wrap items-end gap-[13.2px] rounded-panel border-[3px] border-ink bg-aqua-wash p-[22px] shadow-stamp">
+            <div className="min-w-[220px] flex-1">
+              <Label htmlFor="material-name">Add a material</Label>
+              <Input id="material-name" name="name" required maxLength={40} placeholder="ASA" />
+            </div>
+            <Button type="submit" variant="secondary">Add material</Button>
+          </form>
+        </div>
 
         {/* `grid-cols-1` and `min-w-0`, not a bare `grid`: an implicit track is as
             wide as its widest content, and a gradient's CSS string is one long

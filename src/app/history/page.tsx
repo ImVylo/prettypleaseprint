@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/app-header";
 import { Kicker, StatusChip } from "@/components/ui";
 import { ColorSwatch } from "@/components/color-swatch";
 import { RequeueStory } from "@/components/requeue-story";
+import { ReassignStory } from "@/components/reassign-story";
 import type { StoryStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -188,6 +189,9 @@ export default async function HistoryPage({
                     seeing a ticket is not its owner (the action re-checks). */}
                 {story.uploaderId === user.id && (
                   <RequeueStory storyId={story.id} label={storyRef(story.id)} compact />
+                )}
+                {isAdmin && (
+                  <ReassignStory storyId={story.id} requesters={people} />
                 )}
               </div>
             ))

@@ -1,4 +1,4 @@
-import { advanceStory, changeStoryRequester, clearFlag, declineStory, flagStory } from "@/app/actions/stories";
+import { advanceStory, changeStoryRequester, clearFlag, declineStory, flagStory, sendQuote } from "@/app/actions/stories";
 import { nextStatus } from "@/lib/scope";
 import type { StoryStatus } from "@prisma/client";
 
@@ -45,6 +45,17 @@ export function AdminActions({
   return (
     <div className={compact ? "flex flex-wrap items-start gap-[8px]" : "flex flex-col gap-[13.2px]"}>
       <div className="flex flex-wrap items-start gap-[8px]">
+        {isNew && (
+          <form action={sendQuote}>
+            <input type="hidden" name="storyId" value={storyId} />
+            <button
+              type="submit"
+              className="stamp cursor-pointer rounded-chip border-[3px] border-ink bg-sun px-[18px] py-[8px] text-[14px] font-bold text-ink hover:bg-aqua"
+            >
+              Send quote
+            </button>
+          </form>
+        )}
         {next && (
           <form action={advanceStory}>
             <input type="hidden" name="id" value={storyId} />

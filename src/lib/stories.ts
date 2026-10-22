@@ -20,6 +20,7 @@ import { extensionOf } from "@/lib/models";
 import { availableSelection } from "@/lib/catalog-data";
 import { STORY_PRIORITIES, WishSchema } from "@/lib/catalog";
 import { activeBenefitLabels } from "@/lib/benefits";
+import { estimateCost, formatDollars, rateTable } from "@/lib/cost";
 
 /**
  * Everything that can happen to a ticket, in one place.
@@ -146,6 +147,7 @@ export const STORY_FIELDS = {
   dims: true,
   weightGrams: true,
   printMinutes: true,
+  quotedTotal: true,
   sourceUrl: true,
   createdAt: true,
   updatedAt: true,
@@ -891,6 +893,108 @@ export async function changeStoryRequester(actor: Actor, id: number, rawRequeste
     fromName,
     toName: target.name,
   };
+}
+
+/**
+ * Send a quote: price the ticket from what has actually been weighed/timed,
+ * freeze that number, and hand it to the requester to approve. Owner-only,
+ * and only from `Requested` — once accepted the owner is past quoting.
+ */
+export async function sendQuote(actor: Actor, id: number) {
+  const story = await loadForAdmin(actor, id);
+  if (story.status !== "Requested") {
+    throw problem(409, `That ticket is ${story.status.toLowerCase()}, not waiting for a quote.`);
+  }
+  if (!story.weightGrams && !story.printMinutes) {
+    throw problem(409, "Weigh it or time it first — a quote needs at least one measured number.");
+  }
+
+  const rates = await rateTable();
+  const cost = estimateCost(story.material, story.colorName, story.weightGrams, story.printMinutes, rates);
+  const total = cost?.total ?? 0;
+
+  await db.story.update({ where: { id: story.id }, data: { status: "Quoted", quotedTotal: total } });
+
+  await notify({
+    recipientId: story.uploaderId,
+    storyId: story.id,
+    text: `${firstName(actor.name)} quoted “${story.title}” at ${formatDollars(total)} — approve it to start, or decline.`,
+  });
+  await record({
+    action: "story.quote_sent",
+    actor,
+    subject: storyRef(story.id),
+    detail: { title: story.title, total, material: story.material, colorName: story.colorName, weightGrams: story.weightGrams, printMinutes: story.printMinutes },
+  });
+
+  refresh(story.id);
+  return { id: story.id, ref: storyRef(story.id), title: story.title, total, uploaderName: story.uploader.name };
+}
+
+/**
+ * The requester approves the owner's quote, moving it onto the rail for real.
+ */
+export async function approveQuote(actor: Actor, id: number) {
+  const story = await db.story.findFirst({
+    where: { AND: [{ id }, storyScope(actor)] },
+    select: { id: true, title: true, status: true, uploaderId: true, quotedTotal: true, uploader: { select: { name: true } } },
+  });
+  if (!story) throw problem(404, "That ticket no longer exists.");
+  if (story.status !== "Quoted") throw problem(409, `That ticket is ${story.status.toLowerCase()}, not awaiting approval.`);
+  if (story.uploaderId !== actor.id) throw problem(403, "Only the person who asked for it can approve the quote.");
+
+  await db.story.update({ where: { id: story.id }, data: { status: "Accepted" } });
+
+  const ownerId = (await printerOwner())?.id;
+  if (ownerId && ownerId !== actor.id) {
+    await notify({
+      recipientId: ownerId,
+      storyId: story.id,
+      text: `${firstName(actor.name)} approved the ${formatDollars(story.quotedTotal ?? 0)} quote for “${story.title}”.`,
+    });
+  }
+  await record({
+    action: "story.quote_approved",
+    actor,
+    subject: storyRef(story.id),
+    detail: { title: story.title, total: story.quotedTotal },
+  });
+
+  refresh(story.id);
+  return { id: story.id, ref: storyRef(story.id), title: story.title, total: story.quotedTotal, uploaderName: story.uploader.name };
+}
+
+/**
+ * The requester turns the quote down. Terminal, like declining a request.
+ */
+export async function declineQuote(actor: Actor, id: number) {
+  const story = await db.story.findFirst({
+    where: { AND: [{ id }, storyScope(actor)] },
+    select: { id: true, title: true, status: true, uploaderId: true, quotedTotal: true, uploader: { select: { name: true } } },
+  });
+  if (!story) throw problem(404, "That ticket no longer exists.");
+  if (story.status !== "Quoted") throw problem(409, `That ticket is ${story.status.toLowerCase()}, not awaiting approval.`);
+  if (story.uploaderId !== actor.id) throw problem(403, "Only the person who asked for it can decline the quote.");
+
+  await db.story.update({ where: { id: story.id }, data: { status: "Declined" } });
+
+  const ownerId = (await printerOwner())?.id;
+  if (ownerId && ownerId !== actor.id) {
+    await notify({
+      recipientId: ownerId,
+      storyId: story.id,
+      text: `${firstName(actor.name)} declined the ${formatDollars(story.quotedTotal ?? 0)} quote for “${story.title}”.`,
+    });
+  }
+  await record({
+    action: "story.quote_declined",
+    actor,
+    subject: storyRef(story.id),
+    detail: { title: story.title, total: story.quotedTotal },
+  });
+
+  refresh(story.id);
+  return { id: story.id, ref: storyRef(story.id), title: story.title, total: story.quotedTotal, uploaderName: story.uploader.name };
 }
 
 // ---------------------------------------------------------------------------

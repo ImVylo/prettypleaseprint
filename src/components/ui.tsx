@@ -182,6 +182,7 @@ export function Fact({ label, children }: { label: string; children: ReactNode }
  */
 const CHIP_SKIN: Record<string, string> = {
   Requested: "bg-chrome text-ink",
+  Quoted: "bg-sun text-ink",
   Accepted: "bg-aqua text-ink",
   Printing: "bg-sun text-ink",
   Delivery: "bg-cherry text-ink",

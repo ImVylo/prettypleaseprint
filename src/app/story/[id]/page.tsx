@@ -19,6 +19,7 @@ import { ColorSwatch } from "@/components/color-swatch";
 import { WithdrawStory } from "@/components/withdraw-story";
 import { RequeueStory } from "@/components/requeue-story";
 import { CostPanel } from "@/components/cost-panel";
+import { QuoteApproval } from "@/components/quote-approval";
 
 export const dynamic = "force-dynamic";
 
@@ -267,9 +268,14 @@ export default async function StoryPage({
               colorName={story.colorName}
               weightGrams={story.weightGrams}
               printMinutes={story.printMinutes}
+              quotedTotal={story.quotedTotal}
               isAdmin={user.role === "admin"}
               from={`/story/${story.id}`}
             />
+
+            {story.status === "Quoted" && user.id === story.uploader.id && (
+              <QuoteApproval storyId={story.id} total={story.quotedTotal} />
+            )}
 
             <section className="mt-[26.4px]">
               <h2 className="m-0 mb-[13.2px] font-display text-[22px] text-ink">

@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
  */
 const RAIL: Record<string, { bar: string; note: string }> = {
   Requested: { bar: "bg-chrome", note: "waiting on a yes" },
+  Quoted: { bar: "bg-sun", note: "awaiting approval" },
   Accepted: { bar: "bg-aqua", note: "queued up" },
   Printing: { bar: "bg-sun", note: "on the bed" },
   Delivery: { bar: "bg-cherry", note: "come and get it" },
