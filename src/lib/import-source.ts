@@ -110,3 +110,36 @@ export function trustedSourceLink(stored: string | null | undefined): { href: st
   if (!PRINTABLES_PATH.test(url.pathname)) return null;
   return { href: url.toString(), label: SOURCE_LABEL.printables };
 }
+
+/**
+ * A stored source link, as something safe to render on a ticket.
+ *
+ * Separate from `trustedSourceLink` on purpose. That one answers "is this a
+ * place the *import* feature may fetch from", which is an allowlist and should
+ * stay one. This answers "may this be an href on the ticket page", and the
+ * answer is any http(s) address: people paste Thingiverse, MakerWorld,
+ * Printables, their own CAD share link, and a ticket that silently drops the
+ * link is worse than one that shows where it goes.
+ *
+ * What makes it safe is the label: the hostname, always, never a bare
+ * "Source ↗" that dresses an arbitrary destination up as part of the app.
+ * Credentials embedded in the URL are stripped, since they would otherwise be
+ * handed to the destination and shown in the status bar.
+ */
+export function sourceLink(
+  stored: string | null | undefined,
+): { href: string; label: string } | null {
+  if (!stored) return null;
+  let url: URL;
+  try {
+    url = new URL(stored);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  url.username = "";
+  url.password = "";
+  const label = url.hostname.replace(/^www\./i, "");
+  if (!label) return null;
+  return { href: url.toString(), label };
+}

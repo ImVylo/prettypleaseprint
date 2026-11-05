@@ -5,7 +5,7 @@ import { getStoryOr404, printerName, requireUser, storyRef, STAGES } from "@/lib
 import { PRIORITY_CHIP, STORY_PRIORITIES, quantityText, relativeTime } from "@/lib/catalog";
 import { changeStoryPriority } from "@/app/actions/stories";
 import { formatBytes } from "@/lib/models";
-import { trustedSourceLink } from "@/lib/import-source";
+import { sourceLink } from "@/lib/import-source";
 import { db } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { Fact, Notice, StatusChip } from "@/components/ui";
@@ -54,9 +54,9 @@ export default async function StoryPage({
   });
 
   const currentIndex = (STAGES as readonly string[]).indexOf(story.status);
-  // Null for an upload — and for anything in the column that is not a link
-  // this app could have written, because it is about to become an href.
-  const source = trustedSourceLink(story.sourceUrl);
+  // Any http(s) source, shown with its hostname so the destination is never
+  // disguised as part of this app; null when the column is empty or not a URL.
+  const source = sourceLink(story.sourceUrl);
   // Matches `changeStoryPriority` in src/lib/stories.ts: the requester or the
   // owner, and only while there is still something to order.
   const canReprioritise =
@@ -158,7 +158,7 @@ export default async function StoryPage({
                   rel="noopener noreferrer nofollow"
                   className="font-mono font-bold uppercase tracking-[0.04em] text-cherry-dk underline underline-offset-4 hover:text-cherry"
                 >
-                  Source ↗
+                  {source.label} ↗
                 </a>
                 <span className="ml-[6px] text-ink-3">
                   — where the model came from. Not fetched or verified by

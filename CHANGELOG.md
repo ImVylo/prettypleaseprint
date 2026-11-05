@@ -51,6 +51,11 @@ Notable changes. Every entry names a released version; deployments pin
   request for five was quoted — and could be approved — at the price of one.
   Weight and print time stay per print (that is what a slicer reports), the
   total now multiplies by the quantity, and the cost panel says so.
+- **The ticket page's Source link disappeared for every site but Printables.**
+  Routing it through the import allowlist was the wrong fix for a phishing
+  concern: any http(s) source renders again, labelled with its hostname, so
+  the destination is never disguised as part of the app. Credentials embedded
+  in the URL are stripped.
 - **A notification failure turned a saved request into a 500** (and a retry
   into a duplicate ticket, or a skipped stage). `notify` is now post-commit
   best-effort.
