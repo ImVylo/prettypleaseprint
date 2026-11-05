@@ -69,12 +69,35 @@ export const FLOW = [
  */
 export const BOARD = ["Requested", "Quoted", "Accepted", "Printing", "Delivery"] as const satisfies readonly StoryStatus[];
 
+/**
+ * Every stage a ticket can stand on, in order — the sequence the ticket page
+ * draws, as opposed to the sequence `nextStatus` advances through.
+ *
+ * `Quoted` belongs here but not in `FLOW`. A quote is reached by an explicit
+ * action ("Send quote"), never by moving a ticket one step along, so putting it
+ * in `FLOW` would make "Accept it" send a quote instead of accepting. Leaving
+ * it out of *this* list is what made a quoted ticket render as being at no
+ * stage at all, with every step waiting.
+ */
+export const STAGES = [
+  "Requested",
+  "Quoted",
+  "Accepted",
+  "Printing",
+  "Delivery",
+  "Done",
+] as const satisfies readonly StoryStatus[];
+
 /** Is this the end of the line? */
 export function isTerminal(status: StoryStatus): boolean {
   return status === FLOW[FLOW.length - 1] || status === "Declined";
 }
 
 export function nextStatus(current: StoryStatus): StoryStatus | null {
+  // A quoted ticket's next step is acceptance — the requester approves it, or
+  // the owner accepts on their behalf. It is deliberately not in `FLOW`,
+  // because quoting is its own action and "Accept it" must not mean "quote".
+  if (current === "Quoted") return "Accepted";
   const i = (FLOW as readonly string[]).indexOf(current);
   if (i < 0 || i === FLOW.length - 1) return null;
   return FLOW[i + 1]!;
@@ -84,7 +107,9 @@ export class AuthzError extends Error {}
 
 /**
  * Only the admin moves a story, only forwards, only one step at a time.
- * `Declined` is reachable from `Requested` alone.
+ * `Declined` is reachable from `Requested` and from `Quoted` — before a quote
+ * is settled the owner can still say no, which is the only way out of a quote
+ * the requester never answers.
  */
 export function assertTransition(
   actor: Actor,
@@ -95,7 +120,7 @@ export function assertTransition(
     throw new AuthzError("Only the printer owner moves a story along.");
   }
   if (to === "Declined") {
-    if (from !== "Requested") {
+    if (from !== "Requested" && from !== "Quoted") {
       throw new AuthzError(`Cannot decline a story that is already ${from}.`);
     }
     return;

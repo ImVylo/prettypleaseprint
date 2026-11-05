@@ -64,7 +64,7 @@ export function AdminActions({
               type="submit"
               className="stamp cursor-pointer rounded-chip border-[3px] border-ink bg-cherry-dk px-[18px] py-[8px] text-[14px] font-bold text-cream hover:bg-cherry"
             >
-              {isNew ? "Accept it" : `Move to ${next}`}
+              {isNew ? "Accept it" : status === "Quoted" ? "Accept it" : `Move to ${next}`}
             </button>
           </form>
         )}
@@ -152,8 +152,9 @@ export function AdminActions({
           </form>
         </details>
 
-        {/* Terminal, so it asks twice. */}
-        {isNew && (
+        {/* Terminal, so it asks twice. Reachable before the quote is settled,
+            which is the only way out of a quote no one answers. */}
+        {(isNew || status === "Quoted") && (
           <details>
             <summary className="inline-block cursor-pointer list-none rounded-chip border-[3px] border-transparent px-[15px] py-[8px] text-[14px] font-bold text-ink-2 hover:border-ink hover:bg-cherry-wash">
               Decline

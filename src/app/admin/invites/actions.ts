@@ -118,6 +118,10 @@ export async function resendInviteAction(formData: FormData): Promise<void> {
 
 export async function revokeInviteAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
+  // Every other action that hands out or withdraws access re-checks that the
+  // session is fresh; revoking is just as consequential and just as
+  // unrecoverable, so it belongs with them.
+  await requireFreshAuth("/admin/invites");
   const id = String(formData.get("id") ?? "");
   const invite = await db.invite.findUnique({ where: { id }, select: { email: true } });
   await revokeInvite(id);

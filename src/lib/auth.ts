@@ -19,6 +19,7 @@ import { initialsFor } from "@/lib/tokens";
 import { isBuildPhase } from "@/lib/runtime";
 import { enabledSources } from "@/lib/import-source";
 import { record } from "@/lib/audit";
+import { ipSource } from "@/lib/client-ip";
 import {
   PASSWORD_MAX,
   PASSWORD_MIN,
@@ -72,6 +73,33 @@ if (isProd && !isBuildPhase) {
         "smoke test, never for a real deployment.",
     );
   }
+}
+
+/**
+ * The hops allowed to append to the forwarded chain.
+ *
+ * Docker's own networks plus loopback: everything in front of the app in a
+ * normal deployment (Traefik, then whatever network the proxy sits on). With
+ * these declared, Better Auth resolves the address from the right of the chain
+ * and stops at the first hop it cannot vouch for — so a client that prefixes
+ * its own `X-Forwarded-For` entry does not get to choose its rate-limit key.
+ * Override with TRUSTED_PROXY_CIDRS for a deployment whose proxy is elsewhere.
+ */
+const DEFAULT_TRUSTED_PROXY_CIDRS =
+  "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1/32,::1/128";
+
+function rateLimitIpAddress() {
+  if (ipSource() === "cloudflare") {
+    // Overwritten at the edge, so it is not something the client can set.
+    return { ipAddressHeaders: ["cf-connecting-ip"] };
+  }
+  return {
+    ipAddressHeaders: ["x-forwarded-for", "x-real-ip"],
+    trustedProxies: (process.env.TRUSTED_PROXY_CIDRS ?? DEFAULT_TRUSTED_PROXY_CIDRS)
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  };
 }
 
 export const auth = betterAuth({
@@ -202,6 +230,19 @@ export const auth = betterAuth({
       path: "/",
       secure: isHttps,
     },
+    /**
+     * Which header the rate limiter believes.
+     *
+     * Better Auth's default is to believe `x-forwarded-for` unconditionally,
+     * which makes the sign-in cap (`10/min`) advisory: a client that sends a
+     * different address on every request gets a fresh bucket every time, and
+     * nothing else limits online password guessing. So this hands it the same
+     * trust decision the audit trail already makes — Cloudflare's edge header
+     * when behind Cloudflare, and behind an ordinary proxy the forwarded chain
+     * with the private hops declared trusted, so the resolution walks in from
+     * the right and a client-supplied prefix cannot win.
+     */
+    ipAddress: rateLimitIpAddress(),
   },
 
   rateLimit: {

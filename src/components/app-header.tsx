@@ -46,13 +46,16 @@ export async function AppHeader({
   user: Actor;
   active: string;
 }) {
-  const [notifications, passkeyCount] = await Promise.all([
+  const [notifications, passkeyCount, unread] = await Promise.all([
     db.notification.findMany({
       where: { recipientId: user.id },
       orderBy: { createdAt: "desc" },
       take: 30,
     }),
     db.passkey.count({ where: { userId: user.id } }),
+    // The badge is a count of everything unread, not of the page of newest
+    // rows the panel happens to hold — past 30 it sat at "30" for ever.
+    db.notification.count({ where: { recipientId: user.id, read: false } }),
   ]);
 
   const items: FeedItem[] = notifications.map((n) => ({
@@ -63,7 +66,7 @@ export async function AppHeader({
     storyId: n.storyId,
     featureId: n.featureId,
   }));
-  const unread = items.filter((i) => !i.read).length;
+  // `unread` comes from the database count above.
 
   return (
     <header data-authenticated="true" className="sticky top-0 z-40">

@@ -99,10 +99,26 @@ export async function editMaterialAction(formData: FormData): Promise<void> {
   if (!parsedName.success) back("error", "Material names must be between 1 and 40 characters.");
   const material = await db.catalogMaterial.findUnique({ where: { id }, select: { name: true } });
   if (!material) back("error", "That material no longer exists.");
+  // One transaction, and the rate is *copied* rather than moved. Moving it
+  // orphaned every existing ticket: `Story.material` snapshots the old label,
+  // so history would look up a rate that no longer exists and price filament
+  // at zero. And because the rename committed before the second statement, a
+  // duplicate rate key reported "already in the catalog" after the rename had
+  // already landed.
+  const rate = await db.materialRate.findUnique({ where: { material: material.name } });
   try {
-    await db.catalogMaterial.update({ where: { id }, data: { name: parsedName.data } });
-    // Carry the $/kg rate over to the new name so a rename doesn't orphan it.
-    await db.materialRate.updateMany({ where: { material: material.name }, data: { material: parsedName.data } });
+    await db.$transaction(async (tx) => {
+      await tx.catalogMaterial.update({ where: { id }, data: { name: parsedName.data } });
+      if (rate) {
+        await tx.materialRate.upsert({
+          where: { material: parsedName.data },
+          // An existing rate for the new name wins; never overwrite a number
+          // the owner has already set.
+          update: {},
+          create: { material: parsedName.data, dollarsPerKg: rate.dollarsPerKg },
+        });
+      }
+    });
   } catch (error) {
     if (duplicate(error)) back("error", `${parsedName.data} is already in the catalog.`);
     throw error;

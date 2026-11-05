@@ -48,10 +48,14 @@ export default async function QueuePage({
   // oldest-first and the sort is stable. The same order the feature-request
   // queue reads in.
   const waiting = stories
-    .filter((s) => s.status === "Requested")
+    // Quoted belongs here: a quote is settled by someone — the requester, or
+    // the owner accepting in person — and the owner's controls live on this
+    // page. It used to be filtered out of both lists, so a quoted ticket
+    // vanished from the owner's view entirely.
+    .filter((s) => s.status === "Requested" || s.status === "Quoted")
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1));
   const working = stories.filter(
-    (s) => s.status !== "Requested" && s.status !== "Declined" && s.status !== "Quoted",
+    (s) => s.status === "Accepted" || s.status === "Printing" || s.status === "Delivery",
   );
 
   return (
@@ -90,6 +94,7 @@ export default async function QueuePage({
                   <div className="min-w-[220px] flex-[1_1_280px]">
                     <p className="m-0 flex flex-wrap items-center gap-[8px] font-mono text-[11.5px] font-bold tracking-[0.06em] text-ink-3">
                       <PriorityChip priority={story.priority} />
+                      {story.status === "Quoted" && <StatusChip status={story.status} />}
                       <span>{storyRef(story.id)} · {story.filename} · {formatBytes(story.fileSize)}</span>
                     </p>
                     <Link

@@ -14,6 +14,7 @@ export {
   storyScope,
   storyRef,
   FLOW,
+  STAGES,
   BOARD,
   isTerminal,
   nextStatus,
@@ -140,14 +141,23 @@ export async function notify(opts: {
   featureId?: number;
   text: string;
 }): Promise<void> {
-  await db.notification.create({
-    data: {
-      recipientId: opts.recipientId,
-      storyId: opts.storyId ?? null,
-      featureId: opts.featureId ?? null,
-      text: opts.text,
-    },
-  });
+  // A notification is a post-commit side effect: the ticket or status change
+  // it describes has already been written by the time this runs. Letting a
+  // failure here throw turned a saved request into a 500, and the retry made a
+  // second ticket (or skipped a stage, when the write was a status change).
+  try {
+    await db.notification.create({
+      data: {
+        recipientId: opts.recipientId,
+        storyId: opts.storyId ?? null,
+        featureId: opts.featureId ?? null,
+        text: opts.text,
+      },
+    });
+  } catch (error) {
+    console.error("[notify] could not record the notification", error);
+    return;
+  }
 
   // Best-effort outbound webhook (Discord/Slack-compatible), on top of the
   // in-app row above. Never awaited into a failure path — see webhook.ts.

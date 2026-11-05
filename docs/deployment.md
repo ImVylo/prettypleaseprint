@@ -484,6 +484,30 @@ root. It is only removal that does.
 Take the snapshot first, and do this last. Nothing else in the migration is
 irreversible; this is.
 
+### Uploads fail with `EACCES` after a restore or a migration
+
+The app runs as uid 1001. If `uploads/` was written by something that ran as
+root — an object-store migration, a restore from `tar` run with `sudo`, an
+older image — the directories are root-owned and every upload fails on the
+first write. The app answers "The file could not be stored" and the container
+log carries the real reason:
+
+```
+[intake] storage write failed Error: EACCES: permission denied,
+  open '/uploads/models/2026-10/….stl.tmp-…'
+```
+
+Fix it once, from a container:
+
+```bash
+docker run --rm -v "$DATA_ROOT/uploads:/uploads" alpine chown -R 1001:1001 /uploads
+```
+
+A fresh named volume is seeded from the image's own `/uploads`, which the
+Dockerfile creates owned by 1001, so this only affects trees that already
+existed. Reading and backing up never needed the chown; this is only about
+the app being able to write.
+
 ### Importing from a link
 
 Off by default. Add this to `.env.docker` and restart the app:

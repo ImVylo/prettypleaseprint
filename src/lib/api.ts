@@ -6,6 +6,10 @@ import { storyRef, type Actor } from "@/lib/scope";
 import { StoryProblem, type CommentRow, type StoryRow } from "@/lib/stories";
 import type { Prisma } from "@prisma/client";
 
+/** A JSON body's ceiling. Small on purpose: none of these endpoints takes a
+ *  document, and the transport's own cap is sized for model uploads. */
+const MAX_JSON_BODY_BYTES = 64 * 1024;
+
 /**
  * The JSON API's boundary.
  *
@@ -135,7 +139,15 @@ export function withActor<P = Record<string, string>>(
  * something and got it wrong.
  */
 export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+  // Every field these endpoints read is a name, a reason or a priority. The
+  // 300 MB transport cap that exists for model uploads applied here too, and
+  // `request.text()` buffered the whole body before anything looked at it — so
+  // one signed-in member could spike the process by a few hundred megabytes
+  // through a comment endpoint.
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_JSON_BODY_BYTES) throw new StoryProblem(413, "That body is too large.");
   const raw = await request.text();
+  if (raw.length > MAX_JSON_BODY_BYTES) throw new StoryProblem(413, "That body is too large.");
   if (!raw.trim()) return {};
   try {
     const parsed: unknown = JSON.parse(raw);

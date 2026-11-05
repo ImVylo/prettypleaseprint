@@ -5,6 +5,57 @@ Notable changes. Every entry names a released version; deployments pin
 
 ## Unreleased
 
+### Fixed
+
+- **A 264-byte 3MF could block the process for ever.** The component walk had
+  a depth cap but no recursion stack, so two objects referencing each other
+  twice was 2^50 synchronous calls: `/api/health` stopped answering and both
+  upload slots stayed taken. It now refuses re-entry and carries a work budget.
+- **Open redirect through `?next=`.** `safeRedirect` checked the input's
+  origin but returned the normalised path, and `/.//evil.example` normalises to
+  `//evil.example` — a protocol-relative URL that lands on another host right
+  after sign-in. The normalised path is checked too.
+- **Sign-up was a membership oracle.** Better Auth checked for an existing
+  email before running the invite gate, so an anonymous caller got `422` for a
+  member, `403` for a stranger and `200` for an address that could claim. The
+  duplicate case now answers exactly like the gate.
+- **`Quoted` was a dead end.** It was missing from `FLOW`, so a quoted ticket
+  had no control on the ticket page, was filtered out of the owner's queue
+  entirely, rendered at no stage on the timeline, and was a `400` on
+  `GET /api/stories?status=Quoted`. A new `STAGES` sequence drives the timeline
+  and the status enum; `nextStatus("Quoted")` is `Accepted`; decline works from
+  `Quoted`; quoted tickets appear in "Waiting on you".
+- **Sign-in rate limiting could be bypassed with a header.** Better Auth
+  believes `X-Forwarded-For` unconditionally, so a rotating value gave a fresh
+  bucket per request. It now gets the same trust decision the audit trail
+  makes, with the private proxy hops declared trusted so the chain is resolved
+  from the right.
+- **A quote could freeze at $0.00.** A material added at `/admin/catalog` has no
+  rate row, `estimateCost` falls back to zero, and `sendQuote` froze the total.
+  Sending a quote without a filament rate is refused, and renaming a material
+  now copies the rate in one transaction instead of moving it and repricing
+  history at zero.
+- **Status transitions were read-then-write.** Advance, decline, send-quote and
+  both quote answers wrote `where: { id }` after checking an in-memory row, so
+  two in-flight clicks could skip a stage or resurrect a declined ticket. Each
+  is now conditional on the state it was read in and answers `409` on a loss.
+- **A non-ASCII filename made the model undownloadable.** `content-disposition`
+  was built straight from the stored name; one em dash made `Headers` throw, so
+  every preview and download of that file was a `500`. It now sends an ASCII
+  fallback plus `filename*=UTF-8''…`.
+- **Uploads failed with `EACCES` when the volume was not owned by uid 1001** —
+  the live incident that started this pass. The image creates `/uploads` owned
+  by the runtime user so a fresh volume is seeded correctly, and the failure is
+  documented with the one-line fix for an existing tree.
+- **A notification failure turned a saved request into a 500** (and a retry
+  into a duplicate ticket, or a skipped stage). `notify` is now post-commit
+  best-effort.
+- **Importing silently dropped multi-colour selections**, and a reprint ignored
+  the colours picked on the form (or stored the primary twice). Both carry and
+  re-validate the extras.
+- **Changing material left stale extra colours** in the upload form, which the
+  server then refused with nothing on screen to fix.
+
 ### Added
 
 - **Adopted upstream v0.3.0.** The fork is rebuilt on `danileau/prettypleaseprint`

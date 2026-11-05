@@ -121,6 +121,10 @@ export async function createInvite(opts: {
   });
 
   const url = inviteUrl(token);
+  // The row exists and its token is only in this variable, so a mail failure
+  // must not escape: the admin is shown the link instead, which is the return
+  // shape the caller already handles. Throwing here left an invite nobody
+  // could use and a retry that said "already invited".
   const delivered = email
     ? await sendMail(
         inviteEmail({
@@ -129,7 +133,10 @@ export async function createInvite(opts: {
           inviterName: invite.invitedBy.name,
           expiresInDays: INVITE_TTL_DAYS,
         }),
-      )
+      ).catch((error) => {
+        console.error("[invites] could not send the invite mail", error);
+        return false;
+      })
     : false;
 
   return { invite, url, delivered };
@@ -159,6 +166,9 @@ export async function resendInvite(inviteId: string): Promise<CreatedInvite> {
   });
 
   const url = inviteUrl(token);
+  // Rotated already, so an escaping error would have killed the link in the
+  // invitee's original email and delivered nothing. Return the new link to the
+  // admin instead; `delivered: false` is the signal the page already renders.
   const delivered = invite.email
     ? await sendMail(
         inviteEmail({
@@ -167,7 +177,10 @@ export async function resendInvite(inviteId: string): Promise<CreatedInvite> {
           inviterName: existing.invitedBy.name,
           expiresInDays: INVITE_TTL_DAYS,
         }),
-      )
+      ).catch((error) => {
+        console.error("[invites] could not send the invite mail", error);
+        return false;
+      })
     : false;
 
   return { invite, url, delivered };

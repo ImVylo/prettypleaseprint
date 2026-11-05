@@ -56,6 +56,13 @@ export function safeRedirect(raw: unknown, fallback = "/"): string {
   // land somewhere that is not the sentinel.
   if (url.origin !== SENTINEL) return fallback;
 
+  // Dot-segment removal can turn a path that arrived with one leading slash
+  // into one with two: "/.//evil.example" normalises to "//evil.example",
+  // which the browser reads as protocol-relative and resolves off-origin.
+  // The origin check above only sees the input, so the normalised string is
+  // what has to be checked as well.
+  if (url.pathname.startsWith("//")) return fallback;
+
   return `${url.pathname}${url.search}${url.hash}`;
 }
 

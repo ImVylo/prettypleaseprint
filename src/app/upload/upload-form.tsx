@@ -39,6 +39,8 @@ export type Again = {
   title: string;
   material: string;
   colorName: string;
+  /** The extras, so a reprint form shows what the last ticket actually asked for. */
+  additionalColorNames: string[];
   quantity: number;
   priority: StoryPriorityName;
   tip: string;
@@ -168,8 +170,10 @@ export function UploadForm({
   const [quantityDraft, setQuantityDraft] = useState<string | null>(null);
   const [priority, setPriority] = useState<StoryPriorityName>(again?.priority ?? DEFAULT_STORY_PRIORITY);
   const [color, setColor] = useState<string>(initialColor.name);
-  const [multiColor, setMultiColor] = useState(false);
-  const [additionalColors, setAdditionalColors] = useState<string[]>([]);
+  const [multiColor, setMultiColor] = useState((again?.additionalColorNames.length ?? 0) > 0);
+  const [additionalColors, setAdditionalColors] = useState<string[]>(
+    again?.additionalColorNames ?? [],
+  );
   const [tip, setTip] = useState<string>(
     again && (tipStillOffered || benefits.length === 0) ? again.tip : defaultTip,
   );
@@ -265,7 +269,8 @@ export function UploadForm({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          url, fileId, title, material, colorName: color, quantity, priority, tip, note, printSettings,
+          url, fileId, title, material, colorName: color, additionalColorNames: additionalColors,
+          quantity, priority, tip, note, printSettings,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -296,7 +301,10 @@ export function UploadForm({
       const res = await fetch(`/api/stories/${source.id}/requeue`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, material, colorName: color, quantity, priority, tip, note, printSettings }),
+        body: JSON.stringify({
+          title, material, colorName: color, additionalColorNames: additionalColors,
+          quantity, priority, tip, note, printSettings,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -381,7 +389,14 @@ export function UploadForm({
     const item = catalog.find((candidate) => candidate.name === next);
     if (!item) return;
     setMaterial(item.name);
-    setColor((item.colors.find((candidate) => candidate.name === "Slate") ?? item.colors[0]!).name);
+    const nextColor = (item.colors.find((candidate) => candidate.name === "Slate") ?? item.colors[0]!).name;
+    setColor(nextColor);
+    // Drop any extra colour the new material does not offer. The chips vanish
+    // from the picker, but they were still in state and still posted — and the
+    // server refused the whole upload for a colour that was no longer on screen.
+    setAdditionalColors((prev) =>
+      prev.filter((name) => name !== nextColor && item.colors.some((c) => c.name === name)),
+    );
   }
 
   return (

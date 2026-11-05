@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getStoryOr404, printerName, requireUser, storyRef, FLOW } from "@/lib/authz";
+import { getStoryOr404, printerName, requireUser, storyRef, STAGES } from "@/lib/authz";
 import { PRIORITY_CHIP, STORY_PRIORITIES, quantityText, relativeTime } from "@/lib/catalog";
 import { changeStoryPriority } from "@/app/actions/stories";
 import { formatBytes } from "@/lib/models";
@@ -53,7 +53,7 @@ export default async function StoryPage({
     select: { id: true, name: true },
   });
 
-  const currentIndex = (FLOW as readonly string[]).indexOf(story.status);
+  const currentIndex = (STAGES as readonly string[]).indexOf(story.status);
   // Null for an upload — and for anything in the column that is not a link
   // this app could have written, because it is about to become an href.
   const source = trustedSourceLink(story.sourceUrl);
@@ -150,10 +150,10 @@ export default async function StoryPage({
             <h1 className="m-0 mb-[13.2px] text-[36px] leading-[1.02] text-ink">
               {story.title}
             </h1>
-            {story.sourceUrl && (
+            {source && (
               <p className="m-0 mb-[13.2px] text-[13.5px]">
                 <a
-                  href={story.sourceUrl}
+                  href={source.href}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   className="font-mono font-bold uppercase tracking-[0.04em] text-cherry-dk underline underline-offset-4 hover:text-cherry"
@@ -269,6 +269,7 @@ export default async function StoryPage({
               weightGrams={story.weightGrams}
               printMinutes={story.printMinutes}
               quotedTotal={story.quotedTotal}
+              status={story.status}
               isAdmin={user.role === "admin"}
               from={`/story/${story.id}`}
             />
@@ -287,7 +288,7 @@ export default async function StoryPage({
                 </p>
               ) : (
                 <ol className="m-0 flex list-none flex-col p-0">
-                  {FLOW.map((step, i) => {
+                  {STAGES.map((step, i) => {
                     const done = currentIndex >= 0 && i < currentIndex;
                     const now = i === currentIndex;
                     return (
@@ -299,7 +300,7 @@ export default async function StoryPage({
                               done ? "bg-mint" : now ? "bg-sun" : "bg-cream-3"
                             }`}
                           />
-                          {i < FLOW.length - 1 && (
+                          {i < STAGES.length - 1 && (
                             <span
                               aria-hidden
                               className={`w-[4px] flex-1 ${done ? "bg-mint" : "bg-cream-3"}`}

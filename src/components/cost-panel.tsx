@@ -13,6 +13,7 @@ export async function CostPanel({
   weightGrams,
   printMinutes,
   quotedTotal,
+  status,
   isAdmin,
   from,
 }: {
@@ -22,6 +23,8 @@ export async function CostPanel({
   weightGrams: number | null;
   printMinutes: number | null;
   quotedTotal: number | null;
+  /** The quote's caption depends on where the ticket has got to. */
+  status: string;
   isAdmin: boolean;
   from: string;
 }) {
@@ -37,7 +40,13 @@ export async function CostPanel({
       {quotedTotal != null ? (
         <div className="flex flex-wrap items-baseline gap-[13.2px]">
           <span className="font-display text-[26px] text-ink">{formatDollars(quotedTotal)}</span>
-          <span className="font-mono text-[12px] text-ink-3">quoted · awaiting approval</span>
+          <span className="font-mono text-[12px] text-ink-3">
+            {status === "Quoted"
+              ? "quoted · awaiting approval"
+              : status === "Declined"
+                ? "quoted · declined"
+                : "quoted · approved"}
+          </span>
         </div>
       ) : cost ? (
         <div className="flex flex-wrap items-baseline gap-[13.2px]">

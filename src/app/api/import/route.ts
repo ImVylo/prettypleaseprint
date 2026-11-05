@@ -33,6 +33,9 @@ export const POST = withActor(async (request, actor) => {
     title: body.title ?? "",
     material: body.material,
     colorName: body.colorName,
+    additionalColorNames: Array.isArray(body.additionalColorNames)
+      ? body.additionalColorNames.filter((n): n is string => typeof n === "string")
+      : [],
     quantity: body.quantity,
     priority: body.priority ?? undefined,
     tip: body.tip,

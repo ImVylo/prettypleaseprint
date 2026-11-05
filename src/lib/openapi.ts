@@ -4,7 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { COLOR_MODES, STORY_PRIORITIES, TIPS, WishSchema } from "@/lib/catalog";
 import { ACCEPTED_EXTENSIONS, MAX_BYTES, formatBytes } from "@/lib/models";
-import { FLOW } from "@/lib/scope";
+import { STAGES } from "@/lib/scope";
 import { IMPORT_SOURCES } from "@/lib/import-source";
 import { BodySchema, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, ReasonSchema } from "@/lib/stories";
 import { NOTIFICATION_LIMIT_MAX } from "@/lib/notifications";
@@ -90,7 +90,7 @@ const STORY_SCHEMA = {
       examples: ["BYD-104"],
     },
     title: { type: "string", examples: ["Cable clip"] },
-    status: { type: "string", enum: [...FLOW, "Declined"] },
+    status: { type: "string", enum: [...STAGES, "Declined"] },
     flagged: { type: "boolean" },
     flagReason: { type: ["string", "null"] },
     quantity: { type: "integer", minimum: 1 },
@@ -440,7 +440,7 @@ export async function buildOpenApiDocument() {
               in: "query",
               description:
                 "Repeat the parameter, or separate with commas. Omit for every status.",
-              schema: { type: "array", items: { type: "string", enum: [...FLOW, "Declined"] } },
+              schema: { type: "array", items: { type: "string", enum: [...STAGES, "Declined"] } },
               explode: true,
             },
             { name: "flagged", in: "query", schema: { type: "boolean" } },

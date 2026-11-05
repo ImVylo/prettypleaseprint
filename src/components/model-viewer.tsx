@@ -64,6 +64,7 @@ export function ModelViewer({
     let disposed = false;
     let frame = 0;
     let cleanupInput: (() => void) | undefined;
+    let disposeStage: (() => void) | undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let renderer: any;
 
@@ -111,6 +112,14 @@ export function ModelViewer({
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         el.replaceChildren(renderer.domElement);
+        // The effect can be torn down while the awaits above are in flight.
+        // Without this, the renderer built after cleanup is never disposed and
+        // its canvas sits in a detached node.
+        if (disposed) {
+          renderer.dispose();
+          renderer.forceContextLoss?.();
+          return;
+        }
 
         scene.add(new THREE.HemisphereLight("#ffffff", "#6b747c", 1.1));
         const key = new THREE.DirectionalLight("#ffffff", 1.5);
@@ -196,6 +205,26 @@ export function ModelViewer({
         camera.position.set(largest * 0.9, largest * 0.95, largest * 1.6);
         camera.lookAt(0, size.y / 2, 0);
 
+        // Everything holding GPU memory is created inside this closure, so the
+        // unmount path gets one function that frees all of it. `renderer
+        // .dispose()` alone only frees the renderer's own programs: the mesh
+        // geometry, the material, the edge overlay and the grid stayed alive,
+        // and a dozen ticket pages was enough for Chrome to drop the oldest
+        // WebGL context and render a blank preview.
+        disposeStage = () => {
+          scene.traverse((node: unknown) => {
+            const n = node as {
+              geometry?: { dispose?: () => void };
+              material?: { dispose?: () => void } | { dispose?: () => void }[];
+            };
+            n.geometry?.dispose?.();
+            if (Array.isArray(n.material)) n.material.forEach((m) => m.dispose?.());
+            else n.material?.dispose?.();
+          });
+          renderer?.dispose?.();
+          renderer?.forceContextLoss?.();
+        };
+
         setPhase({ kind: "ready" });
 
         // --- drag to rotate, with an idle spin that stops on first touch ---
@@ -279,7 +308,11 @@ export function ModelViewer({
       disposed = true;
       if (frame) cancelAnimationFrame(frame);
       cleanupInput?.();
-      renderer?.dispose?.();
+      if (disposeStage) {
+        disposeStage();
+      } else {
+        renderer?.dispose?.();
+      }
     };
   }, [storyId, filename, colorHex, tooLarge]);
 

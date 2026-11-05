@@ -8,7 +8,7 @@ import { record } from "@/lib/audit";
 import { notify, printerName, printerOwner } from "@/lib/authz";
 import {
   AuthzError,
-  FLOW,
+  STAGES,
   assertTransition,
   nextStatus,
   storyRef,
@@ -76,11 +76,13 @@ export const IdSchema = z.coerce.number().int().positive();
 /**
  * Every status a ticket can be in, for parsing a `?status=` filter.
  *
- * Built from `FLOW` plus `Declined` rather than typed out, so a new step added
- * to the flow is filterable the day it lands. `Declined` is not in `FLOW` on
- * purpose — it is off the board, not along it.
+ * Built from `STAGES` plus `Declined` rather than typed out, so every stage the
+ * board can show is filterable. The old version was built from `FLOW`, which
+ * omits `Quoted` — so `GET /api/stories?status=Quoted` was a 400 against the
+ * one status the board itself creates. `Declined` is off the board, so it is
+ * added here rather than living in `STAGES`.
  */
-export const StatusSchema = z.enum([...FLOW, "Declined"] as [string, ...string[]])
+export const StatusSchema = z.enum([...STAGES, "Declined"] as [string, ...string[]])
   .transform((s) => s as StoryStatus);
 
 export const ReasonSchema = z
@@ -386,7 +388,15 @@ export async function advanceStory(actor: Actor, id: number) {
     asProblem(e);
   }
 
-  await db.story.update({ where: { id: story.id }, data: { status: next } });
+  // Conditional on the state it was read in. `update({where:{id}})` wrote
+  // regardless, so two in-flight clicks on one ticket both passed the guard
+  // and the last one won — which could skip a stage, or resurrect a ticket
+  // that had just been declined.
+  const { count } = await db.story.updateMany({
+    where: { id: story.id, status: story.status },
+    data: { status: next },
+  });
+  if (count === 0) throw problem(409, "Someone else just moved this ticket. Reload and try again.");
 
   await notify({
     recipientId: story.uploaderId,
@@ -424,7 +434,11 @@ export async function declineStory(actor: Actor, id: number) {
     asProblem(e);
   }
 
-  await db.story.update({ where: { id: story.id }, data: { status: "Declined" } });
+  const { count } = await db.story.updateMany({
+    where: { id: story.id, status: story.status },
+    data: { status: "Declined" },
+  });
+  if (count === 0) throw problem(409, "Someone else just moved this ticket. Reload and try again.");
 
   await notify({
     recipientId: story.uploaderId,
@@ -702,6 +716,24 @@ export async function requeueStory(
     throw problem(409, `“${wish.tip}” is not a benefit on offer any more — pick one from the list.`);
   }
 
+  // The reprint form can change the colours, so the extras come from the
+  // submitted wish when it names them. Copying the old ticket's list ignored
+  // what the requester picked, and could store the new primary colour a second
+  // time as an "extra" ("Red + Red"). Each one is held to the shelf as it is
+  // today, the same way the primary is.
+  const requestedExtras = Array.isArray(changes.additionalColorNames)
+    ? changes.additionalColorNames.filter((n): n is string => typeof n === "string")
+    : src.additionalColorNames;
+  const additionalColorNames = [...new Set(requestedExtras)].filter(
+    (name) => name !== wish.colorName,
+  );
+  const additionalColorHexes: string[] = [];
+  for (const name of additionalColorNames) {
+    const extra = await availableSelection(wish.material, name);
+    if (!extra) throw problem(409, `“${name}” is not a colour on offer any more — pick from the list.`);
+    additionalColorHexes.push(extra.hex);
+  }
+
   // Copy the object first, so a failure here opens no ticket that points at
   // geometry which was never written — the same ordering the upload uses.
   const destKey = storageKeyFor(extensionOf(src.filename));
@@ -724,8 +756,8 @@ export async function requeueStory(
       colorHex: selection.hex,
       colorStyle: selection.style,
       colorMode: selection.mode,
-      additionalColorNames: src.additionalColorNames,
-      additionalColorHexes: src.additionalColorHexes,
+      additionalColorNames,
+      additionalColorHexes,
       tip: wish.tip,
       note: wish.note,
       printSettings: wish.printSettings,
@@ -854,9 +886,13 @@ export async function changeStoryRequester(actor: Actor, id: number, rawRequeste
   const story = await loadForAdmin(actor, id);
 
   const target = requesterId
-    ? await db.user.findUnique({ where: { id: requesterId }, select: { id: true, name: true } })
+    ? await db.user.findUnique({ where: { id: requesterId }, select: { id: true, name: true, banned: true } })
     : null;
   if (!target) throw problem(400, "Choose who asked for it.");
+  // A suspended account cannot sign in, so a ticket handed to one becomes
+  // invisible to whoever actually wants it. The picker hides them, but a stale
+  // page or a direct POST would still have got through.
+  if (target.banned) throw problem(409, `${target.name}'s access is suspended — give it back to someone who can collect.`);
   if (story.uploaderId === target.id) throw problem(409, `${target.name} already asked for this one.`);
 
   const fromName = story.uploader.name;
@@ -910,10 +946,27 @@ export async function sendQuote(actor: Actor, id: number) {
   }
 
   const rates = await rateTable();
+  // A material with no rate row prices at zero, and a quote freezes that
+  // number — so a free print is one missing row away. Refuse instead of
+  // sending a $0.00 quote the requester can approve.
+  const colorRate = rates.perColorKg[`${story.material}:${story.colorName ?? ""}`];
+  const materialRate = rates.perKg[story.material];
+  if (story.weightGrams && materialRate === undefined && colorRate === undefined) {
+    throw problem(
+      409,
+      `Set a filament rate for ${story.material} on the catalog page first — otherwise the quote prices the plastic at nothing.`,
+    );
+  }
   const cost = estimateCost(story.material, story.colorName, story.weightGrams, story.printMinutes, rates);
   const total = cost?.total ?? 0;
 
-  await db.story.update({ where: { id: story.id }, data: { status: "Quoted", quotedTotal: total } });
+  // Conditional on `Requested`: sending a quote twice must not overwrite the
+  // first total that is already with the requester.
+  const { count } = await db.story.updateMany({
+    where: { id: story.id, status: "Requested" },
+    data: { status: "Quoted", quotedTotal: total },
+  });
+  if (count === 0) throw problem(409, "That ticket moved while the quote was being worked out. Reload and try again.");
 
   await notify({
     recipientId: story.uploaderId,
@@ -943,7 +996,11 @@ export async function approveQuote(actor: Actor, id: number) {
   if (story.status !== "Quoted") throw problem(409, `That ticket is ${story.status.toLowerCase()}, not awaiting approval.`);
   if (story.uploaderId !== actor.id) throw problem(403, "Only the person who asked for it can approve the quote.");
 
-  await db.story.update({ where: { id: story.id }, data: { status: "Accepted" } });
+  const { count } = await db.story.updateMany({
+    where: { id: story.id, status: "Quoted" },
+    data: { status: "Accepted" },
+  });
+  if (count === 0) throw problem(409, "That quote was already settled. Reload to see where it is.");
 
   const ownerId = (await printerOwner())?.id;
   if (ownerId && ownerId !== actor.id) {
@@ -976,7 +1033,11 @@ export async function declineQuote(actor: Actor, id: number) {
   if (story.status !== "Quoted") throw problem(409, `That ticket is ${story.status.toLowerCase()}, not awaiting approval.`);
   if (story.uploaderId !== actor.id) throw problem(403, "Only the person who asked for it can decline the quote.");
 
-  await db.story.update({ where: { id: story.id }, data: { status: "Declined" } });
+  const { count } = await db.story.updateMany({
+    where: { id: story.id, status: "Quoted" },
+    data: { status: "Declined" },
+  });
+  if (count === 0) throw problem(409, "That quote was already settled. Reload to see where it is.");
 
   const ownerId = (await printerOwner())?.id;
   if (ownerId && ownerId !== actor.id) {

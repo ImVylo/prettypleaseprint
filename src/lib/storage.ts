@@ -87,16 +87,25 @@ export async function ensureStorageRoot(): Promise<void> {
 async function writeAtomically(finalPath: string, write: (tmp: string) => Promise<void>) {
   await mkdir(dirname(finalPath), { recursive: true, mode: DIR_MODE });
   const tmp = `${finalPath}.tmp-${randomUUID()}`;
+  let fh: Awaited<ReturnType<typeof open>> | null = null;
+  let dh: Awaited<ReturnType<typeof open>> | null = null;
   try {
     await write(tmp);
-    const fh = await open(tmp, "r+");
+    fh = await open(tmp, "r+");
     await fh.sync();
     await fh.close();
+    fh = null;
     await rename(tmp, finalPath);
-    const dh = await open(dirname(finalPath), "r");
+    dh = await open(dirname(finalPath), "r");
     await dh.sync();
     await dh.close();
+    dh = null;
   } catch (error) {
+    // Without this, an EIO on sync (or EXDEV/EACCES on rename) left the
+    // descriptor open for the life of the process while the temp file was
+    // removed underneath it.
+    await fh?.close().catch(() => {});
+    await dh?.close().catch(() => {});
     await rm(tmp, { force: true });
     throw error;
   }

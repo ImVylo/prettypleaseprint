@@ -31,7 +31,9 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const check = await checkInviteToken(decodeURIComponent(token));
+  // Next already percent-decodes a dynamic segment. Decoding twice threw on a
+  // malformed escape ("/invite/%25zz") and 500ed a public page.
+  const check = await checkInviteToken(token);
 
   if (!check.ok) {
     const { title, body } = REJECTIONS[check.reason];
@@ -67,7 +69,7 @@ export default async function InvitePage({
       </Lead>
 
       <ClaimForm
-        token={decodeURIComponent(token)}
+        token={token}
         email={check.invite.email}
         suggestedName={check.invite.name ?? ""}
       />

@@ -199,6 +199,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 # ci.yml pins this: "images ship no npm".
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
+# The models directory must exist in the image and belong to the runtime user.
+# Docker seeds a fresh named volume from the image's directory at that path,
+# including its ownership — and if the path does not exist, the volume comes up
+# root-owned. The app then runs as uid 1001 and every upload fails EACCES,
+# which is exactly what happened once: a storage migration wrote the tree as
+# root and nobody noticed until uploads stopped. The chown only helps a *new*
+# volume, which is the case this fixes; an existing one needs the same chown by
+# hand (documented in docs/deployment.md).
+RUN mkdir -p /uploads && chown nextjs:nodejs /uploads
+
 USER nextjs
 EXPOSE 3000
 

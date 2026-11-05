@@ -41,6 +41,21 @@ import { openModel } from "@/lib/storage";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * ASCII fallback plus the exact UTF-8 name, because a `Headers` value is a
+ * ByteString: one em dash in a filename made `new NextResponse` throw, so the
+ * file uploaded fine and then 500'd on every preview and download.
+ */
+function contentDisposition(filename: string): string {
+  const ascii = filename
+    // Control characters and lone surrogates cannot be encoded at all.
+    .replace(/[\u0000-\u001f\u007f\ud800-\udfff]/g, "")
+    .replace(/[^\x20-\x7e]/g, "_")
+    .replace(/["\\]/g, "");
+  const encoded = encodeURIComponent(filename.replace(/[\ud800-\udfff]/g, ""));
+  return `attachment; filename="${ascii || "model"}"; filename*=UTF-8''${encoded}`;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -136,7 +151,7 @@ export async function GET(
       // Always known now, where S3 only sometimes reported it.
       "content-length": String(file.size),
       // Never let a browser decide to render a model file as something else.
-      "content-disposition": `attachment; filename="${story.filename.replace(/"/g, "")}"`,
+      "content-disposition": contentDisposition(story.filename),
       "cache-control": "private, no-store",
     },
   });

@@ -8,7 +8,7 @@ import { WishSchema, type Wish } from "@/lib/catalog";
 import { availableSelection } from "@/lib/catalog-data";
 import { activeBenefitLabels } from "@/lib/benefits";
 import { REJECTION_COPY, extensionOf, inspectModel, safeFilename } from "@/lib/models";
-import { MIME_FOR, ensureStorageRoot, putModel, storageKeyFor } from "@/lib/storage";
+import { MIME_FOR, deleteModel, ensureStorageRoot, putModel, storageKeyFor } from "@/lib/storage";
 import { StoryProblem } from "@/lib/stories";
 import type { ImportSource } from "@/lib/import-source";
 
@@ -175,6 +175,11 @@ export async function openRequest(
     });
   } catch (error) {
     console.error("[intake] story insert failed", error);
+    // The bytes are already on disk under a generated key and nothing points
+    // at them now. Left behind, every failed insert leaks up to the upload cap.
+    await deleteModel(key).catch((cleanupError) => {
+      console.error("[intake] could not remove the orphaned model", key, cleanupError);
+    });
     throw problem(500, "The request could not be saved. Try again.");
   }
 

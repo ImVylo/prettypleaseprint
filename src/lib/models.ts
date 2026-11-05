@@ -32,7 +32,8 @@ export type Rejection =
   | "bad_extension"
   | "not_a_model"
   | "corrupt"
-  | "no_geometry";
+  | "no_geometry"
+  | "too_complex";
 
 export const REJECTION_COPY: Record<Rejection, string> = {
   empty: "That file is empty.",
@@ -42,6 +43,7 @@ export const REJECTION_COPY: Record<Rejection, string> = {
     "That does not look like an STL or 3MF inside, whatever it is named.",
   corrupt: "That file is damaged — it could not be read all the way through.",
   no_geometry: "There is no geometry in that file.",
+  too_complex: `That model has more than ${MAX_TRIANGLES.toLocaleString("en-US")} triangles — simplify it or split it into parts.`,
 };
 
 export type Measured = {
@@ -206,6 +208,13 @@ type Obj3mf = {
   /** Flat x,y,z triples in the part's local space. */
   verts: number[];
   components: { objectid: string; path: string | null; tf: Mat }[];
+  /**
+   * The 3MF production extension's way of putting an object in another part:
+   * `<object id="1" type="model" p:path="/3D/Objects/a.model"/>` in the root
+   * part is a *link* to object 1 in that part, not an object with no geometry.
+   * Kept so the walk can follow it instead of silently measuring nothing.
+   */
+  linkPath: string | null;
 };
 
 type Part3mf = {
@@ -226,14 +235,28 @@ function parsePart(xml: string): Part3mf {
   const unitScale = UNIT_TO_MM[unit ?? "millimeter"] ?? 1;
 
   const objects = new Map<string, Obj3mf>();
-  // Objects do not nest, so a non-greedy body match is safe. Self-closing
-  // objects carry no geometry and are simply skipped.
-  const objRe = /<object\b([^>]*)>([\s\S]*?)<\/object>/gi;
+  // Objects do not nest. Match each opening tag and take its body up to the
+  // next `</object>`, rather than one regex from `<object` to `</object>`:
+  // the greedy-to-the-next-close form lets a self-closing
+  // `<object … p:path="…" />` swallow the *following* object's body, which
+  // gave the link a foreign mesh and left the real object unparsed.
+  const objOpenRe = /<object\b([^>]*)>/gi;
   let om: RegExpExecArray | null;
-  while ((om = objRe.exec(xml)) !== null) {
-    const id = attr(om[1]!, "id");
+  while ((om = objOpenRe.exec(xml)) !== null) {
+    const attrs = om[1]!;
+    const id = attr(attrs, "id");
+    const selfClosing = /\/\s*$/.test(attrs);
+    let body = "";
+    if (!selfClosing) {
+      const close = xml.indexOf("</object>", objOpenRe.lastIndex);
+      if (close === -1) continue; // malformed: no close tag, nothing to trust
+      body = xml.slice(objOpenRe.lastIndex, close);
+      objOpenRe.lastIndex = close + "</object>".length;
+    }
     if (id === undefined) continue;
-    const body = om[2]!;
+    const linkPath = selfClosing
+      ? /\b[\w]*:?path\s*=\s*"([^"]+)"/i.exec(attrs)?.[1] ?? null
+      : null;
 
     const verts: number[] = [];
     const vertexTag = /<vertex\b[^>]*\/?>/g;
@@ -259,7 +282,7 @@ function parsePart(xml: string): Part3mf {
       components.push({ objectid, path, tf: parseTransform(attr(ct[0], "transform")) });
     }
 
-    objects.set(id, { verts, components });
+    objects.set(id, { verts, components, linkPath });
   }
 
   const buildItems: Part3mf["buildItems"] = [];
@@ -274,6 +297,15 @@ function parsePart(xml: string): Part3mf {
 
   return { unitScale, objects, buildItems };
 }
+
+/**
+ * How many vertices the component walk will place before it stops.
+ *
+ * A budget, not a measurement: at three times the triangle ceiling there is
+ * already more geometry than the inspector will accept, so walking further
+ * cannot turn a refused file into an accepted one — it can only burn time.
+ */
+const MAX_WALK_VERTICES = MAX_TRIANGLES * 3;
 
 function measure3mf(bytes: Uint8Array): { box: Box; triangles: number } | null {
   let files: Record<string, Uint8Array>;
@@ -291,6 +323,13 @@ function measure3mf(bytes: Uint8Array): { box: Box; triangles: number } | null {
         // both. Nothing is ever written from these names (storage keys are
         // generated), so an odd or traversal-shaped member name is harmless.
         if (!/\.model$/i.test(file.name)) return false;
+        // Bound each part as well as the total. `unzipSync` allocates an
+        // entry's whole original size before this filter's running total is
+        // consulted, so a single part inflating to the total cap was still
+        // one buffer of 750 MB — and then a JS string of it.
+        if ((file.originalSize ?? 0) > MAX_UPLOAD_BYTES) {
+          throw new Error("a part inside the archive is larger than an upload may be");
+        }
         inflated += file.originalSize ?? 0;
         if (inflated > MAX_INFLATED_BYTES) {
           throw new Error("archive inflates to an implausible size");
@@ -307,6 +346,9 @@ function measure3mf(bytes: Uint8Array): { box: Box; triangles: number } | null {
   for (const name of Object.keys(files)) {
     if (!/\.model$/i.test(name)) continue;
     const xml = new TextDecoder("utf-8", { fatal: false }).decode(files[name]!);
+    // Let the inflated bytes go as soon as they have been turned into text:
+    // at the cap, every part was held twice (buffer + string) at once.
+    delete files[name];
     parts.set(name.toLowerCase(), parsePart(xml));
     triangles += (xml.match(/<triangle\b/g) ?? []).length;
   }
@@ -316,29 +358,51 @@ function measure3mf(bytes: Uint8Array): { box: Box; triangles: number } | null {
   let placed = 0;
 
   // Walk from each build item down through components, composing transforms and
-  // expanding the box with every mesh vertex in its final placed position. A
-  // visited set (keyed by part+object at a given depth) plus a depth cap guards
-  // against a malformed file whose components reference each other in a cycle.
-  const walk = (partKey: string, objectId: string, m: Mat, depth: number) => {
-    if (depth > 50) return;
-    const part = parts.get(partKey);
-    const obj = part?.objects.get(objectId);
-    if (!part || !obj) return;
-
-    const s = part.unitScale;
-    for (let i = 0; i + 2 < obj.verts.length; i += 3) {
-      const x = obj.verts[i]!, y = obj.verts[i + 1]!, z = obj.verts[i + 2]!;
-      expand(
-        box,
-        (x * m[0]! + y * m[4]! + z * m[8]! + m[12]!) * s,
-        (x * m[1]! + y * m[5]! + z * m[9]! + m[13]!) * s,
-        (x * m[2]! + y * m[6]! + z * m[10]! + m[14]!) * s,
-      );
-      placed++;
+  // expanding the box with every mesh vertex in its final placed position.
+  // The component graph is attacker-controlled, so the walk carries two
+  // guards. A recursion stack refuses a cycle instead of expanding it — two
+  // objects referencing each other twice is 2^50 calls, which was enough to
+  // block the event loop for good from a 264-byte file. A work budget bounds a
+  // graph that fans out without cycling, which the stack alone does not.
+  const resolve = (partKey: string, objectId: string) => {
+    let key = partKey;
+    for (let hops = 0; hops < 4; hops++) {
+      const part = parts.get(key);
+      const obj = part?.objects.get(objectId);
+      if (!part || !obj) return null;
+      if (!obj.linkPath) return { key, part, obj };
+      key = normalizePart(obj.linkPath);
     }
-    for (const c of obj.components) {
-      const childKey = c.path ? normalizePart(c.path) : partKey;
-      walk(childKey, c.objectid, matMul(c.tf, m), depth + 1);
+    return null;
+  };
+
+  const walk = (partKey: string, objectId: string, m: Mat, depth: number, stack: Set<string>) => {
+    if (depth > 50 || placed > MAX_WALK_VERTICES) return;
+    const target = resolve(partKey, objectId);
+    if (!target) return;
+    const { key, part, obj } = target;
+    const nodeKey = `${key}\u0000${objectId}`;
+    if (stack.has(nodeKey)) return;
+
+    stack.add(nodeKey);
+    try {
+      const s = part.unitScale;
+      for (let i = 0; i + 2 < obj.verts.length; i += 3) {
+        const x = obj.verts[i]!, y = obj.verts[i + 1]!, z = obj.verts[i + 2]!;
+        expand(
+          box,
+          (x * m[0]! + y * m[4]! + z * m[8]! + m[12]!) * s,
+          (x * m[1]! + y * m[5]! + z * m[9]! + m[13]!) * s,
+          (x * m[2]! + y * m[6]! + z * m[10]! + m[14]!) * s,
+        );
+        placed++;
+      }
+      for (const c of obj.components) {
+        const childKey = c.path ? normalizePart(c.path) : key;
+        walk(childKey, c.objectid, matMul(c.tf, m), depth + 1, stack);
+      }
+    } finally {
+      stack.delete(nodeKey);
     }
   };
 
@@ -348,11 +412,11 @@ function measure3mf(bytes: Uint8Array): { box: Box; triangles: number } | null {
   const roots = [...parts].filter(([, p]) => p.buildItems.length > 0);
   if (roots.length > 0) {
     for (const [key, part] of roots) {
-      for (const item of part.buildItems) walk(key, item.objectid, item.tf, 0);
+      for (const item of part.buildItems) walk(key, item.objectid, item.tf, 0, new Set());
     }
   } else {
     for (const [key, part] of parts) {
-      for (const id of part.objects.keys()) walk(key, id, IDENTITY_MAT, 0);
+      for (const id of part.objects.keys()) walk(key, id, IDENTITY_MAT, 0, new Set());
     }
   }
 
@@ -445,6 +509,11 @@ export function inspectModel(filename: string, bytes: Uint8Array): Inspection {
   if (!measured || measured.triangles === 0) {
     return { ok: false, reason: "no_geometry" };
   }
+  // The ceiling has to bind for 3MF too, not only for a binary STL: a 3MF's
+  // triangle count is read from the XML, and nothing compared it to anything.
+  if (measured.triangles > MAX_TRIANGLES) {
+    return { ok: false, reason: "too_complex" };
+  }
   if (!Number.isFinite(measured.box.min[0])) {
     return { ok: false, reason: "no_geometry" };
   }
@@ -464,6 +533,9 @@ export function inspectModel(filename: string, bytes: Uint8Array): Inspection {
   };
 }
 
+/** Longest filename the app will store and show back. */
+const SAFE_FILENAME_MAX = 120;
+
 /**
  * A filename safe to store and echo back. The original never builds a storage
  * path — see `storageKeyFor` in storage.ts — but it is shown in the UI, so
@@ -478,5 +550,14 @@ export function safeFilename(raw: string): string {
     // person's filename still looks like their filename.
     .replace(/[\u0000-\u001f\u007f<>:"|?*\\/]/g, "")
     .trim();
-  return (cleaned || "model").slice(0, 120);
+  const name = cleaned || "model";
+
+  // Truncation has to keep the extension. Slicing a 130-character name at 120
+  // dropped ".3mf" off the end, and the *truncated* name is what the format
+  // check sees — so a perfectly good model was refused as "only .stl and .3mf".
+  if (name.length <= SAFE_FILENAME_MAX) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 && name.length - dot <= 12 ? name.slice(dot) : "";
+  const stem = ext ? name.slice(0, dot) : name;
+  return stem.slice(0, Math.max(1, SAFE_FILENAME_MAX - ext.length)) + ext;
 }
