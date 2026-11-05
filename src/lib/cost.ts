@@ -146,14 +146,21 @@ export function estimateCost(
   weightGrams: number | null | undefined,
   printMinutes: number | null | undefined,
   rates: { perKg: Record<string, number>; perColorKg: Record<string, number>; perHour: number },
+  quantity = 1,
 ): CostEstimate | null {
   if (!weightGrams && !printMinutes) return null;
+
+  // Weight and print time are recorded for ONE print — a slicer reports a
+  // single object — and a request can be for several. The quantity multiplies
+  // both, because a batch uses that much filament and that much machine time.
+  // Without it a request for five was quoted at the price of one.
+  const pieces = Math.max(1, Math.trunc(quantity) || 1);
 
   const perKg = color
     ? (rates.perColorKg[`${material}:${color}`] ?? rates.perKg[material] ?? 0)
     : (rates.perKg[material] ?? 0);
-  const materialCost = weightGrams ? (weightGrams / 1000) * perKg : 0;
-  const machineCost = printMinutes ? (printMinutes / 60) * rates.perHour : 0;
+  const materialCost = weightGrams ? (weightGrams / 1000) * perKg * pieces : 0;
+  const machineCost = printMinutes ? (printMinutes / 60) * rates.perHour * pieces : 0;
 
   return {
     materialCost: round2(materialCost),

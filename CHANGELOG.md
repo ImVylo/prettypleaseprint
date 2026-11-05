@@ -47,6 +47,10 @@ Notable changes. Every entry names a released version; deployments pin
   the live incident that started this pass. The image creates `/uploads` owned
   by the runtime user so a fresh volume is seeded correctly, and the failure is
   documented with the one-line fix for an existing tree.
+- **Quotes ignored the quantity.** `estimateCost` priced one print, so a
+  request for five was quoted — and could be approved — at the price of one.
+  Weight and print time stay per print (that is what a slicer reports), the
+  total now multiplies by the quantity, and the cost panel says so.
 - **A notification failure turned a saved request into a 500** (and a retry
   into a duplicate ticket, or a skipped stage). `notify` is now post-commit
   best-effort.

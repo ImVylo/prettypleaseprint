@@ -957,7 +957,7 @@ export async function sendQuote(actor: Actor, id: number) {
       `Set a filament rate for ${story.material} on the catalog page first — otherwise the quote prices the plastic at nothing.`,
     );
   }
-  const cost = estimateCost(story.material, story.colorName, story.weightGrams, story.printMinutes, rates);
+  const cost = estimateCost(story.material, story.colorName, story.weightGrams, story.printMinutes, rates, story.quantity);
   const total = cost?.total ?? 0;
 
   // Conditional on `Requested`: sending a quote twice must not overwrite the
@@ -971,7 +971,9 @@ export async function sendQuote(actor: Actor, id: number) {
   await notify({
     recipientId: story.uploaderId,
     storyId: story.id,
-    text: `${firstName(actor.name)} quoted “${story.title}” at ${formatDollars(total)} — approve it to start, or decline.`,
+    text: `${firstName(actor.name)} quoted “${story.title}” at ${formatDollars(total)}${
+      story.quantity > 1 ? ` for ${story.quantity} prints` : ""
+    } — approve it to start, or decline.`,
   });
   await record({
     action: "story.quote_sent",

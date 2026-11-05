@@ -12,6 +12,7 @@ export async function CostPanel({
   colorName,
   weightGrams,
   printMinutes,
+  quantity = 1,
   quotedTotal,
   status,
   isAdmin,
@@ -22,6 +23,8 @@ export async function CostPanel({
   colorName: string | null;
   weightGrams: number | null;
   printMinutes: number | null;
+  /** How many are being printed — weight and time are per print. */
+  quantity?: number;
   quotedTotal: number | null;
   /** The quote's caption depends on where the ticket has got to. */
   status: string;
@@ -29,7 +32,7 @@ export async function CostPanel({
   from: string;
 }) {
   const rates = await rateTable();
-  const cost = estimateCost(material, colorName, weightGrams, printMinutes, rates);
+  const cost = estimateCost(material, colorName, weightGrams, printMinutes, rates, quantity);
 
   return (
     <div className="mt-[17.6px] rounded-panel border-[3px] border-ink bg-mint-wash p-[17.6px]">
@@ -41,6 +44,7 @@ export async function CostPanel({
         <div className="flex flex-wrap items-baseline gap-[13.2px]">
           <span className="font-display text-[26px] text-ink">{formatDollars(quotedTotal)}</span>
           <span className="font-mono text-[12px] text-ink-3">
+            {quantity > 1 ? `for ${quantity} prints · ` : null}
             {status === "Quoted"
               ? "quoted · awaiting approval"
               : status === "Declined"
@@ -52,6 +56,7 @@ export async function CostPanel({
         <div className="flex flex-wrap items-baseline gap-[13.2px]">
           <span className="font-display text-[26px] text-ink">{formatDollars(cost.total)}</span>
           <span className="font-mono text-[12px] text-ink-3">
+            {quantity > 1 ? `for ${quantity} prints · ` : null}
             {weightGrams ? `${formatDollars(cost.materialCost)} filament` : null}
             {weightGrams && printMinutes ? " + " : null}
             {printMinutes ? `${formatDollars(cost.machineCost)} machine time` : null}
@@ -75,7 +80,7 @@ export async function CostPanel({
               htmlFor={`weight-${storyId}`}
               className="mb-[4px] block font-mono text-[10.5px] font-bold uppercase text-ink-2"
             >
-              Weight (g)
+              Weight (g), one print
             </label>
             <input
               id={`weight-${storyId}`}
@@ -92,7 +97,7 @@ export async function CostPanel({
               htmlFor={`minutes-${storyId}`}
               className="mb-[4px] block font-mono text-[10.5px] font-bold uppercase text-ink-2"
             >
-              Print time (min)
+              Print time (min), one print
             </label>
             <input
               id={`minutes-${storyId}`}

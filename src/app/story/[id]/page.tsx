@@ -268,6 +268,7 @@ export default async function StoryPage({
               colorName={story.colorName}
               weightGrams={story.weightGrams}
               printMinutes={story.printMinutes}
+              quantity={story.quantity}
               quotedTotal={story.quotedTotal}
               status={story.status}
               isAdmin={user.role === "admin"}
